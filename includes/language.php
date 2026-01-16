@@ -1,155 +1,158 @@
 <?php
 /**
- * Language System
+ * Language Management System
  * Handles bilingual support (Arabic & English)
  */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Default language
-define('DEFAULT_LANG', 'ar');
-
-// Available languages
-$available_languages = ['ar', 'en'];
-
-// Get current language from session, cookie, or browser
-function getCurrentLanguage() {
-    global $available_languages;
+class Language {
+    private static $current_lang = 'en';
+    private static $translations = [];
+    private static $supported_languages = ['en', 'ar'];
     
-    // Check if language is set in URL
-    if (isset($_GET['lang']) && in_array($_GET['lang'], $available_languages)) {
-        $_SESSION['lang'] = $_GET['lang'];
-        setcookie('lang', $_GET['lang'], time() + (86400 * 365), '/');
-        return $_GET['lang'];
+    /**
+     * Initialize language system
+     */
+    public static function init() {
+        // Check if language is set in session
+        if (isset($_SESSION['language']) && in_array($_SESSION['language'], self::$supported_languages)) {
+            self::$current_lang = $_SESSION['language'];
+        } 
+        // Check cookie
+        elseif (isset($_COOKIE['language']) && in_array($_COOKIE['language'], self::$supported_languages)) {
+            self::$current_lang = $_COOKIE['language'];
+            $_SESSION['language'] = self::$current_lang;
+        }
+        // Detect browser language
+        else {
+            $browser_lang = self::detectBrowserLanguage();
+            self::$current_lang = $browser_lang;
+            $_SESSION['language'] = self::$current_lang;
+        }
+        
+        // Load translations
+        self::loadTranslations();
     }
     
-    // Check session
-    if (isset($_SESSION['lang']) && in_array($_SESSION['lang'], $available_languages)) {
-        return $_SESSION['lang'];
-    }
-    
-    // Check cookie
-    if (isset($_COOKIE['lang']) && in_array($_COOKIE['lang'], $available_languages)) {
-        $_SESSION['lang'] = $_COOKIE['lang'];
-        return $_COOKIE['lang'];
-    }
-    
-    // Check browser language
-    if (isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-        $browser_lang = substr($_SERVER['HTTP_ACCEPT_LANGUAGE'], 0, 2);
-        if (in_array($browser_lang, $available_languages)) {
-            $_SESSION['lang'] = $browser_lang;
-            return $browser_lang;
+    /**
+     * Load translation file
+     */
+    private static function loadTranslations() {
+        $file = __DIR__ . '/../lang/' . self::$current_lang . '.php';
+        if (file_exists($file)) {
+            self::$translations = require $file;
         }
     }
     
-    // Return default
-    $_SESSION['lang'] = DEFAULT_LANG;
-    return DEFAULT_LANG;
-}
-
-// Set current language
-$current_lang = getCurrentLanguage();
-
-// Load language file
-$lang = require_once __DIR__ . '/../lang/' . $current_lang . '.php';
-
-// Translation function
-function t($key, $default = '') {
-    global $lang;
-    return isset($lang[$key]) ? $lang[$key] : ($default ?: $key);
-}
-
-// Get text direction based on language
-function getTextDirection() {
-    global $current_lang;
-    return $current_lang === 'ar' ? 'rtl' : 'ltr';
-}
-
-// Get opposite language
-function getOtherLanguage() {
-    global $current_lang;
-    return $current_lang === 'ar' ? 'en' : 'ar';
-}
-
-// Generate language switch URL
-function getLanguageSwitchUrl() {
-    $other_lang = getOtherLanguage();
-    $current_url = $_SERVER['REQUEST_URI'];
-    
-    // Remove existing lang parameter
-    $current_url = preg_replace('/[?&]lang=[^&]*/', '', $current_url);
-    
-    // Add new lang parameter
-    $separator = strpos($current_url, '?') !== false ? '&' : '?';
-    return $current_url . $separator . 'lang=' . $other_lang;
-}
-
-// Get language name
-function getLanguageName($lang_code) {
-    $names = [
-        'ar' => 'العربية',
-        'en' => 'English'
-    ];
-    return $names[$lang_code] ?? $lang_code;
-}
-
-// Format date according to language
-function formatDate($date, $format = 'long') {
-    global $current_lang;
-    
-    $timestamp = is_numeric($date) ? $date : strtotime($date);
-    
-    if ($current_lang === 'ar') {
-        if ($format === 'long') {
-            return date('d/m/Y - h:i A', $timestamp);
-        } else {
-            return date('d/m/Y', $timestamp);
+    /**
+     * Get translation
+     * @param string $key
+     * @param array $replace
+     * @return string
+     */
+    public static function get($key, $replace = []) {
+        $translation = self::$translations[$key] ?? $key;
+        
+        // Replace placeholders
+        foreach ($replace as $placeholder => $value) {
+            $translation = str_replace(':' . $placeholder, $value, $translation);
         }
-    } else {
-        if ($format === 'long') {
-            return date('F d, Y - h:i A', $timestamp);
-        } else {
-            return date('M d, Y', $timestamp);
+        
+        return $translation;
+    }
+    
+    /**
+     * Alias for get()
+     */
+    public static function trans($key, $replace = []) {
+        return self::get($key, $replace);
+    }
+    
+    /**
+     * Set current language
+     * @param string $lang
+     */
+    public static function setLanguage($lang) {
+        if (in_array($lang, self::$supported_languages)) {
+            self::$current_lang = $lang;
+            $_SESSION['language'] = $lang;
+            setcookie('language', $lang, time() + (86400 * 365), '/'); // 1 year
+            self::loadTranslations();
         }
     }
-}
-
-// Format price according to language
-function formatPrice($price, $currency = 'USD') {
-    global $current_lang;
     
-    $formatted_price = number_format($price, 2);
+    /**
+     * Get current language
+     * @return string
+     */
+    public static function getCurrentLanguage() {
+        return self::$current_lang;
+    }
     
-    if ($current_lang === 'ar') {
-        return $formatted_price . ' ' . getCurrencySymbol($currency);
-    } else {
-        return getCurrencySymbol($currency) . $formatted_price;
+    /**
+     * Check if current language is RTL
+     * @return bool
+     */
+    public static function isRTL() {
+        return self::$current_lang === 'ar';
+    }
+    
+    /**
+     * Get text direction
+     * @return string
+     */
+    public static function getDirection() {
+        return self::isRTL() ? 'rtl' : 'ltr';
+    }
+    
+    /**
+     * Detect browser language
+     * @return string
+     */
+    private static function detectBrowserLanguage() {
+        if (isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+            $browser_lang = substr($_SERVER['HTTP_ACCEPT_LANGUAGE'], 0, 2);
+            if (in_array($browser_lang, self::$supported_languages)) {
+                return $browser_lang;
+            }
+        }
+        return 'en'; // Default
+    }
+    
+    /**
+     * Get all supported languages
+     * @return array
+     */
+    public static function getSupportedLanguages() {
+        return [
+            'en' => 'English',
+            'ar' => 'العربية'
+        ];
+    }
+    
+    /**
+     * Get opposite language (for language switcher)
+     * @return string
+     */
+    public static function getOppositeLanguage() {
+        return self::$current_lang === 'en' ? 'ar' : 'en';
     }
 }
 
-// Get currency symbol
-function getCurrencySymbol($currency = 'USD') {
-    $symbols = [
-        'USD' => '$',
-        'EUR' => '€',
-        'ILS' => '₪',
-        'JOD' => 'د.أ',
-        'EGP' => 'ج.م'
-    ];
-    return $symbols[$currency] ?? $currency;
+/**
+ * Helper function for translations
+ * @param string $key
+ * @param array $replace
+ * @return string
+ */
+function __($key, $replace = []) {
+    return Language::get($key, $replace);
 }
 
-// Format number according to language
-function formatNumber($number, $decimals = 0) {
-    global $current_lang;
-    
-    if ($current_lang === 'ar') {
-        // Arabic uses Arabic-Indic numerals in some contexts
-        return number_format($number, $decimals, '.', ',');
-    } else {
-        return number_format($number, $decimals, '.', ',');
-    }
+/**
+ * Helper function for translations with echo
+ * @param string $key
+ * @param array $replace
+ */
+function _e($key, $replace = []) {
+    echo Language::get($key, $replace);
 }
