@@ -1,71 +1,104 @@
-<?php
-/**
- * Admin Top Bar
- */
-
-$admin_name = $_SESSION['admin_name'] ?? 'Admin';
-$admin_email = $_SESSION['admin_email'] ?? '';
-$admin_avatar = $_SESSION['admin_avatar'] ?? '../images/default-avatar.png';
-?>
 <header class="admin-topbar">
     <div class="topbar-left">
-        <!-- Menu Toggle -->
-        <button class="menu-toggle" id="menuToggle">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
+        <button class="mobile-menu-toggle" id="mobileMenuToggle">
+            <i class="fas fa-bars"></i>
         </button>
         
-        <!-- Search -->
-        <div class="topbar-search">
-            <svg class="topbar-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-            </svg>
-            <input type="text" placeholder="<?php echo t('search'); ?>..." id="adminSearch">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search products, orders, customers..." id="globalSearch">
         </div>
     </div>
     
     <div class="topbar-right">
-        <!-- Language Switcher -->
-        <a href="<?php echo getLanguageSwitchUrl(); ?>" class="topbar-btn" title="<?php echo getLanguageName(getOtherLanguage()); ?>">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-        </a>
-        
         <!-- Notifications -->
-        <button class="topbar-btn" id="notificationsBtn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-            <?php if (isset($stats['pending_orders']) && $stats['pending_orders'] > 0): ?>
-            <span class="topbar-btn-badge"></span>
-            <?php endif; ?>
-        </button>
-        
-        <!-- Messages -->
-        <button class="topbar-btn" id="messagesBtn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </button>
-        
-        <!-- User Menu -->
-        <div class="topbar-user" id="userMenu">
-            <img src="<?php echo htmlspecialchars($admin_avatar); ?>" alt="<?php echo htmlspecialchars($admin_name); ?>" class="user-avatar">
-            <div class="user-info">
-                <h4><?php echo htmlspecialchars($admin_name); ?></h4>
-                <span><?php echo t('administrator'); ?></span>
+        <div class="topbar-item dropdown">
+            <button class="icon-btn" id="notificationsBtn">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </button>
+            <div class="dropdown-menu" id="notificationsMenu">
+                <div class="dropdown-header">Notifications</div>
+                <div class="notification-item">
+                    <i class="fas fa-shopping-cart text-primary"></i>
+                    <div class="notification-content">
+                        <p>New order #1234 received</p>
+                        <span>2 minutes ago</span>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    <div class="notification-content">
+                        <p>Low stock alert for 3 products</p>
+                        <span>1 hour ago</span>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <i class="fas fa-user text-success"></i>
+                    <div class="notification-content">
+                        <p>5 new customer registrations</p>
+                        <span>3 hours ago</span>
+                    </div>
+                </div>
+                <div class="dropdown-footer">
+                    <a href="/admin/notifications/">View all notifications</a>
+                </div>
             </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="topbar-item dropdown">
+            <button class="icon-btn" id="quickActionsBtn">
+                <i class="fas fa-plus-circle"></i>
+            </button>
+            <div class="dropdown-menu" id="quickActionsMenu">
+                <div class="dropdown-header">Quick Actions</div>
+                <a href="/admin/products/add.php" class="dropdown-item">
+                    <i class="fas fa-box"></i> Add Product
+                </a>
+                <a href="/admin/orders/add.php" class="dropdown-item">
+                    <i class="fas fa-shopping-cart"></i> Create Order
+                </a>
+                <a href="/admin/customers/add.php" class="dropdown-item">
+                    <i class="fas fa-user-plus"></i> Add Customer
+                </a>
+                <a href="/admin/discounts/add.php" class="dropdown-item">
+                    <i class="fas fa-percent"></i> Create Coupon
+                </a>
+            </div>
+        </div>
+        
+        <!-- Admin Profile -->
+        <div class="topbar-item dropdown">
+            <button class="admin-profile-btn" id="profileBtn">
+                <div class="admin-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="admin-info">
+                    <span class="admin-name"><?php echo htmlspecialchars($current_admin['name']); ?></span>
+                    <span class="admin-role"><?php echo ucfirst($current_admin['role']); ?></span>
+                </div>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-right" id="profileMenu">
+                <div class="dropdown-header">
+                    Signed in as<br>
+                    <strong><?php echo htmlspecialchars($current_admin['email']); ?></strong>
+                </div>
+                <a href="/admin/profile.php" class="dropdown-item">
+                    <i class="fas fa-user"></i> My Profile
+                </a>
+                <a href="/admin/settings.php" class="dropdown-item">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="/admin/activity.php" class="dropdown-item">
+                    <i class="fas fa-history"></i> Activity Log
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="/admin/logout.php" class="dropdown-item text-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
         </div>
     </div>
 </header>
