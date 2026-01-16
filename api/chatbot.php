@@ -1,144 +1,198 @@
 <?php
 /**
  * Chatbot API Endpoint
- * Dorsh Palestine E-Commerce
+ * Handles AI chat requests from frontend
  */
-
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
 
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
-require_once __DIR__ . '/../includes/openai.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/openai.php';
+require_once __DIR__ . '/../includes/language.php';
 
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
+// Start session
+session_start();
 
+// Initialize language
+Language::init();
+
+// Set JSON header
+header('Content-Type: application/json');
+
+// Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode([
-        'success' => false,
-        'error' => 'Method not allowed'
-    ]);
-    exit();
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+    exit;
 }
 
 // Get request data
 $input = json_decode(file_get_contents('php://input'), true);
 
+// Validate input
 if (!isset($input['message']) || empty(trim($input['message']))) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'Message is required'
-    ]);
-    exit();
+    http_response_code(400);
+    echo json_encode(['error' => 'Message is required']);
+    exit;
 }
 
-$message = sanitizeInput($input['message']);
-$action = $input['action'] ?? 'chat';
-$language = $input['language'] ?? 'en';
-$user_id = $input['user_id'] ?? null;
+$message = sanitize($input['message']);
+$type = $input['type'] ?? 'general'; // general, product_search, faq, recommendations
+$language = $input['language'] ?? Language::getCurrentLanguage();
+$context = $input['context'] ?? [];
+
+// Initialize OpenAI
+$openai = new OpenAI();
 
 try {
-    $database = new Database();
-    $db = $database->getConnection();
-    $openai = new OpenAI($db);
+    $response = [];
     
-    switch ($action) {
-        case 'search':
-            // Smart product search
-            $response = $openai->searchProducts($message, $language);
-            break;
+    switch ($type) {
+        case 'product_search':
+            // AI-powered product search
+            $result = $openai->searchProducts($message, $language);
             
-        case 'recommend':
-            // Product recommendations
-            if (!$user_id) {
+            if ($result['success']) {
                 $response = [
-                    'success' => false,
-                    'error' => 'User ID required for recommendations'
+                    'success' => true,
+                    'message' => $result['ai_response'],
+                    'products' => formatProductsForResponse($result['products'], $language),
+                    'type' => 'product_search'
                 ];
             } else {
-                $response = $openai->getRecommendations($user_id, $language);
+                throw new Exception($result['error']);
+            }
+            break;
+            
+        case 'recommendations':
+            // Get AI recommendations for a product
+            if (!isset($context['product_id'])) {
+                throw new Exception('Product ID is required for recommendations');
+            }
+            
+            $result = $openai->getRecommendations($context['product_id'], $language);
+            
+            if ($result['success']) {
+                $response = [
+                    'success' => true,
+                    'message' => $result['ai_explanation'],
+                    'products' => formatProductsForResponse($result['products'], $language),
+                    'type' => 'recommendations'
+                ];
+            } else {
+                throw new Exception($result['error']);
             }
             break;
             
         case 'faq':
-            // FAQ answers
-            $response = $openai->answerFAQ($message, $language);
+            // Answer FAQ questions
+            $result = $openai->answerFAQ($message, $language);
+            
+            if ($result['success']) {
+                $response = [
+                    'success' => true,
+                    'message' => $result['answer'],
+                    'type' => 'faq'
+                ];
+            } else {
+                throw new Exception($result['error']);
+            }
             break;
             
-        case 'chat':
+        case 'general':
         default:
             // General chat
-            $context = [];
+            // Get conversation history from session
+            $history = $_SESSION['chat_history'] ?? [];
             
-            // Add cart context if user is logged in
-            if ($user_id) {
-                $cart = getCartItems($db, $user_id);
-                if (!empty($cart)) {
-                    $context['cart_items'] = count($cart);
+            $context['history'] = $history;
+            $context['language'] = $language;
+            
+            $result = $openai->chat($message, $context);
+            
+            if ($result['success']) {
+                // Save to history
+                $history[] = ['role' => 'user', 'content' => $message];
+                $history[] = ['role' => 'assistant', 'content' => $result['message']];
+                
+                // Keep only last 10 messages
+                if (count($history) > 10) {
+                    $history = array_slice($history, -10);
                 }
+                
+                $_SESSION['chat_history'] = $history;
+                
+                $response = [
+                    'success' => true,
+                    'message' => $result['message'],
+                    'type' => 'general'
+                ];
+            } else {
+                throw new Exception($result['error']);
             }
-            
-            $response = $openai->sendMessage($message, $context);
             break;
     }
     
-    // Log conversation for analytics (optional)
-    if (ENABLE_CHAT_LOGGING) {
-        logChatMessage($db, $user_id, $message, $response['message'] ?? '', $action);
-    }
+    // Log chat interaction
+    logChatInteraction($message, $response['message'] ?? '', $type);
     
     echo json_encode($response);
     
 } catch (Exception $e) {
-    error_log("Chatbot API Error: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'An error occurred. Please try again.'
+        'error' => $e->getMessage()
     ]);
 }
 
 /**
- * Get cart items for user
+ * Format products for API response
+ * @param array $products
+ * @param string $language
+ * @return array
  */
-function getCartItems($db, $user_id) {
-    try {
-        $stmt = $db->prepare("
-            SELECT c.*, p.name_en, p.price
-            FROM cart c
-            JOIN products p ON c.product_id = p.id
-            WHERE c.user_id = :user_id
-        ");
-        $stmt->bindParam(':user_id', $user_id);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return [];
+function formatProductsForResponse($products, $language) {
+    $formatted = [];
+    
+    foreach ($products as $product) {
+        $name_field = $language === 'ar' ? 'name_ar' : 'name_en';
+        $desc_field = $language === 'ar' ? 'description_ar' : 'description_en';
+        
+        $formatted[] = [
+            'id' => $product['id'],
+            'name' => $product[$name_field] ?? $product['name_en'],
+            'price' => number_format($product['price'], 2),
+            'image' => $product['main_image'] ?? '/images/products/default.jpg',
+            'url' => '/product.php?id=' . $product['id'],
+            'in_stock' => $product['stock_quantity'] > 0,
+            'description' => substr($product[$desc_field] ?? '', 0, 150) . '...'
+        ];
     }
+    
+    return $formatted;
 }
 
 /**
- * Log chat message
+ * Log chat interaction to database
+ * @param string $user_message
+ * @param string $ai_response
+ * @param string $type
  */
-function logChatMessage($db, $user_id, $message, $response, $action) {
+function logChatInteraction($user_message, $ai_response, $type) {
+    global $db;
+    
     try {
-        $stmt = $db->prepare("
-            INSERT INTO chat_logs (user_id, message, response, action, created_at)
-            VALUES (:user_id, :message, :response, :action, NOW())
-        ");
+        $user_id = $_SESSION['user_id'] ?? null;
+        $session_id = session_id();
         
-        $stmt->bindParam(':user_id', $user_id);
-        $stmt->bindParam(':message', $message);
-        $stmt->bindParam(':response', $response);
-        $stmt->bindParam(':action', $action);
-        $stmt->execute();
-    } catch (PDOException $e) {
-        error_log("Error logging chat: " . $e->getMessage());
+        $db->query(
+            "INSERT INTO chat_logs (user_id, session_id, user_message, ai_response, chat_type, created_at) 
+            VALUES (?, ?, ?, ?, ?, NOW())",
+            [$user_id, $session_id, $user_message, $ai_response, $type]
+        );
+    } catch (Exception $e) {
+        // Silent fail - don't break chat if logging fails
+        error_log('Chat logging failed: ' . $e->getMessage());
     }
 }
