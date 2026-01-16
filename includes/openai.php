@@ -1,313 +1,363 @@
 <?php
 /**
  * OpenAI Integration
- * Handles AI chatbot and smart product search
+ * Dorsh Palestine E-Commerce
  */
 
 class OpenAI {
-    private $api_key;
+    private $apiKey;
     private $model;
-    private $db;
+    private $baseUrl = 'https://api.openai.com/v1';
     
-    public function __construct($db) {
-        $this->api_key = OPENAI_API_KEY;
-        $this->model = OPENAI_MODEL;
-        $this->db = $db;
+    public function __construct() {
+        $this->apiKey = OPENAI_API_KEY;
+        $this->model = OPENAI_MODEL ?? 'gpt-3.5-turbo';
     }
     
     /**
      * Send chat completion request to OpenAI
      */
-    public function chat($messages, $temperature = 0.7, $max_tokens = 800) {
-        $url = 'https://api.openai.com/v1/chat/completions';
+    public function chat($messages, $temperature = 0.7, $maxTokens = 500) {
+        $url = $this->baseUrl . '/chat/completions';
         
         $data = [
             'model' => $this->model,
             'messages' => $messages,
             'temperature' => $temperature,
-            'max_tokens' => $max_tokens
+            'max_tokens' => $maxTokens
         ];
         
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->api_key
-        ]);
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($http_code !== 200) {
-            return [
-                'success' => false,
-                'error' => 'OpenAI API error: ' . $http_code
-            ];
-        }
-        
-        $result = json_decode($response, true);
-        
-        return [
-            'success' => true,
-            'message' => $result['choices'][0]['message']['content'] ?? '',
-            'usage' => $result['usage'] ?? []
-        ];
+        return $this->makeRequest($url, $data);
     }
     
     /**
-     * Smart product search using AI
+     * Search products using AI
      */
-    public function searchProducts($query, $lang = 'en') {
-        // Get products from database
-        $products = $this->getProductsContext();
+    public function searchProducts($query, $language = 'en') {
+        global $db;
         
-        // Create system message
-        $system_message = $this->getSystemMessage($lang);
+        // Get product context
+        $products = $this->getProductContext();
         
-        // Build messages array
-        $messages = [
-            ['role' => 'system', 'content' => $system_message],
-            ['role' => 'system', 'content' => "Available products:\n" . json_encode($products, JSON_UNESCAPED_UNICODE)],
-            ['role' => 'user', 'content' => $query]
+        $systemMessage = [
+            'role' => 'system',
+            'content' => "You are a helpful shopping assistant for Dorsh Palestine e-commerce store. 
+            You help customers find products based on their needs. 
+            Language: {$language}
+            Available products: " . json_encode($products) . "
+            
+            When suggesting products, provide:
+            1. Product name
+            2. Brief description
+            3. Price
+            4. Why it matches their needs
+            
+            Always respond in {$language} language (Arabic if 'ar', English if 'en')."
         ];
         
-        $response = $this->chat($messages, 0.3, 600);
+        $userMessage = [
+            'role' => 'user',
+            'content' => $query
+        ];
         
-        if (!$response['success']) {
-            return $response;
+        $response = $this->chat([$systemMessage, $userMessage]);
+        
+        if ($response && isset($response['choices'][0]['message']['content'])) {
+            return [
+                'success' => true,
+                'response' => $response['choices'][0]['message']['content'],
+                'products' => $this->extractProductIds($response['choices'][0]['message']['content'], $products)
+            ];
         }
         
-        // Parse AI response to extract product IDs
-        $product_ids = $this->extractProductIds($response['message']);
-        
         return [
-            'success' => true,
-            'message' => $response['message'],
-            'products' => $product_ids,
-            'usage' => $response['usage']
+            'success' => false,
+            'error' => 'Failed to get AI response'
         ];
     }
     
     /**
      * Get product recommendations
      */
-    public function getRecommendations($product_id, $user_history = [], $lang = 'en') {
-        // Get product details
-        $stmt = $this->db->prepare("
-            SELECT p.*, c.name_en, c.name_ar 
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.id = ?
-        ");
-        $stmt->execute([$product_id]);
-        $product = $stmt->fetch();
+    public function getRecommendations($productId, $userId = null, $language = 'en') {
+        global $db;
+        
+        // Get current product details
+        $product = $db->query(
+            "SELECT * FROM products WHERE id = ?",
+            [$productId]
+        )->fetch();
         
         if (!$product) {
             return ['success' => false, 'error' => 'Product not found'];
         }
         
+        // Get user's browsing history if available
+        $userHistory = [];
+        if ($userId) {
+            $userHistory = $this->getUserHistory($userId);
+        }
+        
         // Get similar products
-        $similar_products = $this->getSimilarProducts($product['category_id'], $product_id);
+        $similarProducts = $db->query(
+            "SELECT * FROM products 
+             WHERE category_id = ? 
+             AND id != ? 
+             AND stock_quantity > 0 
+             LIMIT 10",
+            [$product['category_id'], $productId]
+        )->fetchAll();
         
-        // Create recommendation prompt
-        $prompt = $this->buildRecommendationPrompt($product, $similar_products, $user_history, $lang);
-        
-        $messages = [
-            ['role' => 'system', 'content' => $this->getSystemMessage($lang)],
-            ['role' => 'user', 'content' => $prompt]
+        $systemMessage = [
+            'role' => 'system',
+            'content' => "You are a product recommendation AI for an e-commerce store.
+            Current product: " . json_encode($product) . "
+            Similar products: " . json_encode($similarProducts) . "
+            User history: " . json_encode($userHistory) . "
+            
+            Recommend 3-5 products that would complement or be alternatives to the current product.
+            Consider user's browsing history if available.
+            Return product IDs as a JSON array."
         ];
         
-        $response = $this->chat($messages, 0.5, 400);
+        $response = $this->chat([$systemMessage]);
         
-        return $response;
+        if ($response && isset($response['choices'][0]['message']['content'])) {
+            $content = $response['choices'][0]['message']['content'];
+            $productIds = $this->extractProductIdsFromJson($content);
+            
+            return [
+                'success' => true,
+                'product_ids' => $productIds,
+                'explanation' => $content
+            ];
+        }
+        
+        // Fallback to similar products
+        return [
+            'success' => true,
+            'product_ids' => array_column($similarProducts, 'id'),
+            'explanation' => 'Similar products from the same category'
+        ];
     }
     
     /**
      * Answer FAQ questions
      */
-    public function answerFAQ($question, $lang = 'en') {
-        $faq_context = $this->getFAQContext($lang);
+    public function answerFAQ($question, $language = 'en') {
+        $faqContext = $this->getFAQContext();
+        $siteInfo = $this->getSiteInfo();
         
-        $messages = [
-            ['role' => 'system', 'content' => $this->getSystemMessage($lang)],
-            ['role' => 'system', 'content' => "FAQ Information:\n" . $faq_context],
-            ['role' => 'user', 'content' => $question]
+        $systemMessage = [
+            'role' => 'system',
+            'content' => "You are a customer service assistant for Dorsh Palestine e-commerce store.
+            
+            Store Information:
+            " . json_encode($siteInfo) . "
+            
+            FAQ Database:
+            " . json_encode($faqContext) . "
+            
+            Answer customer questions about:
+            - Shipping and delivery
+            - Payment methods
+            - Return policy
+            - Product availability
+            - Order tracking
+            
+            Always respond in {$language} language.
+            Be helpful, friendly, and professional."
         ];
         
-        return $this->chat($messages, 0.4, 500);
-    }
-    
-    /**
-     * General customer support
-     */
-    public function handleCustomerQuery($query, $conversation_history = [], $lang = 'en') {
-        $messages = [
-            ['role' => 'system', 'content' => $this->getSystemMessage($lang)]
+        $userMessage = [
+            'role' => 'user',
+            'content' => $question
         ];
         
-        // Add conversation history
-        foreach ($conversation_history as $msg) {
-            $messages[] = $msg;
+        $response = $this->chat([$systemMessage, $userMessage]);
+        
+        if ($response && isset($response['choices'][0]['message']['content'])) {
+            return [
+                'success' => true,
+                'answer' => $response['choices'][0]['message']['content']
+            ];
         }
         
-        // Add current query
-        $messages[] = ['role' => 'user', 'content' => $query];
-        
-        return $this->chat($messages);
+        return [
+            'success' => false,
+            'error' => 'Failed to get answer'
+        ];
     }
     
     /**
-     * Get system message based on language
+     * Generate product descriptions
      */
-    private function getSystemMessage($lang) {
-        global $current_lang;
-        $lang = $lang ?: $current_lang;
+    public function generateProductDescription($productData, $language = 'en') {
+        $systemMessage = [
+            'role' => 'system',
+            'content' => "You are a professional product description writer for an e-commerce store.
+            Generate an engaging, SEO-friendly product description.
+            Language: {$language}
+            
+            Product Details:
+            " . json_encode($productData) . "
+            
+            Include:
+            - Main features and benefits
+            - Key specifications
+            - Use cases
+            - Call to action
+            
+            Keep it concise (100-150 words) and compelling."
+        ];
         
-        if ($lang === 'ar') {
-            return "أنت مساعد ذكي لمتجر Dorsh Palestine الإلكتروني. مهمتك مساعدة العملاء في:
-- البحث عن المنتجات المناسبة
-- تقديم توصيات ذكية
-- الإجابة على الأسئلة الشائعة
-- مساعدة العملاء في إتمام عملية الشراء
-
-كن ودوداً، محترفاً، ومفيداً. أجب باللغة العربية بشكل واضح ومختصر.
-إذا سأل العميل عن منتج، ابحث في قائمة المنتجات المتوفرة واقترح الأنسب.
-إذا لم تجد المعلومة، اعتذر بأدب ووجه العميل للتواصل مع خدمة العملاء.";
-        } else {
-            return "You are an AI assistant for Dorsh Palestine e-commerce store. Your role is to help customers with:
-- Finding the right products
-- Providing smart recommendations
-- Answering frequently asked questions
-- Assisting with the purchase process
-
-Be friendly, professional, and helpful. Answer in English clearly and concisely.
-If asked about a product, search the available product list and suggest the most suitable ones.
-If you don't have the information, politely apologize and direct the customer to customer service.";
-        }
-    }
-    
-    /**
-     * Get products context for AI
-     */
-    private function getProductsContext($limit = 50) {
-        $stmt = $this->db->query("
-            SELECT 
-                p.id, 
-                p.name_en, 
-                p.name_ar, 
-                p.description_en, 
-                p.description_ar,
-                p.price,
-                p.stock_quantity,
-                c.name_en as category_en,
-                c.name_ar as category_ar
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.status = 'active'
-            ORDER BY p.created_at DESC
-            LIMIT $limit
-        ");
+        $response = $this->chat([$systemMessage], 0.8, 300);
         
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Get similar products
-     */
-    private function getSimilarProducts($category_id, $exclude_id, $limit = 10) {
-        $stmt = $this->db->prepare("
-            SELECT id, name_en, name_ar, price, description_en, description_ar
-            FROM products
-            WHERE category_id = ? AND id != ? AND status = 'active'
-            LIMIT $limit
-        ");
-        $stmt->execute([$category_id, $exclude_id]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Build recommendation prompt
-     */
-    private function buildRecommendationPrompt($product, $similar_products, $user_history, $lang) {
-        $name = $lang === 'ar' ? $product['name_ar'] : $product['name_en'];
-        
-        if ($lang === 'ar') {
-            $prompt = "بناءً على المنتج التالي: $name\n";
-            $prompt .= "والمنتجات المشابهة المتاحة:\n";
-            $prompt .= json_encode($similar_products, JSON_UNESCAPED_UNICODE);
-            $prompt .= "\n\nقدم توصيات ذكية للعميل (3-5 منتجات) مع شرح مختصر لكل منتج.";
-        } else {
-            $prompt = "Based on the product: $name\n";
-            $prompt .= "And similar available products:\n";
-            $prompt .= json_encode($similar_products);
-            $prompt .= "\n\nProvide smart recommendations (3-5 products) with brief explanation for each.";
+        if ($response && isset($response['choices'][0]['message']['content'])) {
+            return [
+                'success' => true,
+                'description' => $response['choices'][0]['message']['content']
+            ];
         }
         
-        return $prompt;
+        return [
+            'success' => false,
+            'error' => 'Failed to generate description'
+        ];
+    }
+    
+    /**
+     * Make HTTP request to OpenAI API
+     */
+    private function makeRequest($url, $data) {
+        $ch = curl_init($url);
+        
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->apiKey
+            ]
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode !== 200) {
+            error_log("OpenAI API Error: HTTP {$httpCode} - {$response}");
+            return null;
+        }
+        
+        return json_decode($response, true);
+    }
+    
+    /**
+     * Get product context for AI
+     */
+    private function getProductContext($limit = 50) {
+        global $db;
+        
+        $products = $db->query(
+            "SELECT id, name_en, name_ar, description_en, description_ar, 
+                    price, sale_price, category_id, stock_quantity
+             FROM products 
+             WHERE stock_quantity > 0 
+             ORDER BY created_at DESC 
+             LIMIT ?",
+            [$limit]
+        )->fetchAll();
+        
+        return $products;
+    }
+    
+    /**
+     * Get user browsing history
+     */
+    private function getUserHistory($userId) {
+        global $db;
+        
+        $history = $db->query(
+            "SELECT p.id, p.name_en, p.name_ar, p.category_id
+             FROM product_views pv
+             JOIN products p ON pv.product_id = p.id
+             WHERE pv.user_id = ?
+             ORDER BY pv.viewed_at DESC
+             LIMIT 10",
+            [$userId]
+        )->fetchAll();
+        
+        return $history;
     }
     
     /**
      * Get FAQ context
      */
-    private function getFAQContext($lang) {
-        if ($lang === 'ar') {
-            return "
-# معلومات الشحن
-- نوفر الشحن لجميع مدن فلسطين
-- مدة التوصيل: 2-5 أيام عمل
-- الشحن مجاني للطلبات فوق 200 شيكل
-- تكلفة الشحن العادية: 15 شيكل
-
-# سياسة الإرجاع
-- يمكن إرجاع المنتج خلال 14 يوم
-- يجب أن يكون المنتج بحالته الأصلية
-- سيتم استرداد المبلغ خلال 7-10 أيام
-
-# طرق الدفع
-- الدفع عند الاستلام
-- بطاقات الائتمان (Visa, Mastercard)
-- PayPal
-
-# التواصل
-- الهاتف: +970-XXX-XXXX
-- البريد: support@dorsh.ps
-- واتساب: متاح 24/7
-            ";
-        } else {
-            return "
-# Shipping Information
-- We deliver to all Palestinian cities
-- Delivery time: 2-5 business days
-- Free shipping for orders over 200 ILS
-- Standard shipping cost: 15 ILS
-
-# Return Policy
-- Products can be returned within 14 days
-- Product must be in original condition
-- Refund processed within 7-10 days
-
-# Payment Methods
-- Cash on Delivery
-- Credit Cards (Visa, Mastercard)
-- PayPal
-
-# Contact
-- Phone: +970-XXX-XXXX
-- Email: support@dorsh.ps
-- WhatsApp: Available 24/7
-            ";
-        }
+    private function getFAQContext() {
+        return [
+            'shipping' => [
+                'delivery_time' => '3-5 business days within Palestine',
+                'shipping_cost' => 'Free shipping on orders over 200 ILS',
+                'international' => 'Currently shipping within Palestine only'
+            ],
+            'payment' => [
+                'methods' => ['Credit Card', 'PayPal', 'Cash on Delivery'],
+                'security' => 'SSL encrypted secure payment',
+                'currency' => 'ILS (Israeli Shekel)'
+            ],
+            'returns' => [
+                'policy' => '30-day return policy',
+                'condition' => 'Items must be unused and in original packaging',
+                'refund_time' => '7-10 business days after return received'
+            ]
+        ];
+    }
+    
+    /**
+     * Get site information
+     */
+    private function getSiteInfo() {
+        return [
+            'name' => 'Dorsh Palestine',
+            'email' => SITE_EMAIL,
+            'phone' => SITE_PHONE ?? '+970-XXX-XXXX',
+            'address' => 'Palestine',
+            'business_hours' => 'Sunday - Thursday: 9 AM - 6 PM',
+            'support_whatsapp' => WHATSAPP_NUMBER ?? '+970-XXX-XXXX'
+        ];
     }
     
     /**
      * Extract product IDs from AI response
      */
-    private function extractProductIds($message) {
-        // Try to find product IDs in the response
-        preg_match_all('/\b(id|product)[:\s]*(\d+)/i', $message, $matches);
-        return array_unique($matches[2] ?? []);
+    private function extractProductIds($content, $products) {
+        $productIds = [];
+        
+        foreach ($products as $product) {
+            // Check if product name is mentioned
+            if (stripos($content, $product['name_en']) !== false || 
+                stripos($content, $product['name_ar']) !== false) {
+                $productIds[] = $product['id'];
+            }
+        }
+        
+        return $productIds;
+    }
+    
+    /**
+     * Extract product IDs from JSON response
+     */
+    private function extractProductIdsFromJson($content) {
+        // Try to extract JSON array
+        preg_match('/\[([0-9,\s]+)\]/', $content, $matches);
+        
+        if (isset($matches[1])) {
+            $ids = explode(',', $matches[1]);
+            return array_map('trim', $ids);
+        }
+        
+        return [];
     }
 }
