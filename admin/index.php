@@ -1,218 +1,278 @@
 <?php
 /**
- * Admin Dashboard
- * Main dashboard page
+ * Admin Dashboard - Main Page
+ * Dorsh Palestine E-Commerce
  */
 
 require_once '../includes/config.php';
 require_once '../includes/database.php';
 require_once '../includes/functions.php';
-require_once '../includes/language.php';
 
 // Check if admin is logged in
 session_start();
-if (!isset($_SESSION['admin_id'])) {
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
+$pageTitle = 'Dashboard';
+include 'includes/header.php';
+
 // Get dashboard statistics
-$stats = [
-    'total_orders' => 0,
-    'total_revenue' => 0,
-    'total_products' => 0,
-    'total_customers' => 0,
-    'pending_orders' => 0,
-    'low_stock' => 0
-];
-
-// Get total orders
-$stmt = $db->query("SELECT COUNT(*) as count FROM orders");
-$stats['total_orders'] = $stmt->fetch()['count'];
-
-// Get total revenue
-$stmt = $db->query("SELECT SUM(total_amount) as total FROM orders WHERE status != 'cancelled'");
-$stats['total_revenue'] = $stmt->fetch()['total'] ?? 0;
-
-// Get total products
-$stmt = $db->query("SELECT COUNT(*) as count FROM products WHERE status = 'active'");
-$stats['total_products'] = $stmt->fetch()['count'];
-
-// Get total customers
-$stmt = $db->query("SELECT COUNT(*) as count FROM users WHERE role = 'customer'");
-$stats['total_customers'] = $stmt->fetch()['count'];
-
-// Get pending orders
-$stmt = $db->query("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
-$stats['pending_orders'] = $stmt->fetch()['count'];
-
-// Get low stock products
-$stmt = $db->query("SELECT COUNT(*) as count FROM products WHERE stock_quantity <= low_stock_alert AND status = 'active'");
-$stats['low_stock'] = $stmt->fetch()['count'];
-
-// Get recent orders
-$recent_orders = $db->query("
-    SELECT o.*, u.first_name, u.last_name 
-    FROM orders o
-    LEFT JOIN users u ON o.user_id = u.id
-    ORDER BY o.created_at DESC
-    LIMIT 10
-")->fetchAll();
+$stats = getDashboardStats();
+$recentOrders = getRecentOrders(10);
+$lowStockProducts = getLowStockProducts(10);
+$salesData = getSalesData(30); // Last 30 days
 
 ?>
-<!DOCTYPE html>
-<html lang="<?php echo $current_lang; ?>" dir="<?php echo getTextDirection(); ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo t('dashboard'); ?> - Dorsh Palestine Admin</title>
-    <link rel="stylesheet" href="../assets/css/admin.css">
-</head>
-<body>
-    <div class="admin-wrapper">
-        <!-- Sidebar -->
-        <?php include 'includes/sidebar.php'; ?>
+
+<div class="dashboard-container">
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <!-- Total Sales -->
+        <div class="stat-card blue">
+            <div class="stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stat-content">
+                <h3><?php echo formatCurrency($stats['total_sales']); ?></h3>
+                <p>Total Sales</p>
+                <span class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 
+                    <?php echo $stats['sales_growth']; ?>% vs last month
+                </span>
+            </div>
+        </div>
         
-        <!-- Main Content -->
-        <div class="admin-main">
-            <!-- Top Bar -->
-            <?php include 'includes/topbar.php'; ?>
-            
-            <!-- Content -->
-            <div class="admin-content">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <h1 class="page-title"><?php echo t('dashboard'); ?></h1>
-                    <p class="page-subtitle"><?php echo t('welcome_back'); ?></p>
-                </div>
-                
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h3><?php echo formatNumber($stats['total_orders']); ?></h3>
-                            <p><?php echo t('total_orders'); ?></p>
-                            <span class="stat-change positive">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                </svg>
-                                +12% <?php echo t('from_last_month'); ?>
-                            </span>
-                        </div>
-                        <div class="stat-icon primary">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                                <line x1="3" y1="6" x2="21" y2="6"></line>
-                                <path d="M16 10a4 4 0 0 1-8 0"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h3><?php echo formatPrice($stats['total_revenue'], 'ILS'); ?></h3>
-                            <p><?php echo t('total_revenue'); ?></p>
-                            <span class="stat-change positive">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                </svg>
-                                +8.5% <?php echo t('from_last_month'); ?>
-                            </span>
-                        </div>
-                        <div class="stat-icon success">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="1" x2="12" y2="23"></line>
-                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h3><?php echo formatNumber($stats['total_products']); ?></h3>
-                            <p><?php echo t('total_products'); ?></p>
-                            <?php if ($stats['low_stock'] > 0): ?>
-                            <span class="stat-change negative">
-                                <?php echo $stats['low_stock']; ?> <?php echo t('low_stock'); ?>
-                            </span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-icon warning">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-info">
-                            <h3><?php echo formatNumber($stats['total_customers']); ?></h3>
-                            <p><?php echo t('total_customers'); ?></p>
-                            <span class="stat-change positive">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                </svg>
-                                +5% <?php echo t('from_last_month'); ?>
-                            </span>
-                        </div>
-                        <div class="stat-icon info">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Recent Orders -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title"><?php echo t('recent_orders'); ?></h3>
-                        <a href="orders.php" class="btn btn-outline btn-sm"><?php echo t('view_all'); ?></a>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo t('order_number'); ?></th>
-                                        <th><?php echo t('customer'); ?></th>
-                                        <th><?php echo t('date'); ?></th>
-                                        <th><?php echo t('total'); ?></th>
-                                        <th><?php echo t('status'); ?></th>
-                                        <th><?php echo t('actions'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($recent_orders as $order): ?>
-                                    <tr>
-                                        <td>#<?php echo $order['order_number']; ?></td>
-                                        <td><?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></td>
-                                        <td><?php echo formatDate($order['created_at']); ?></td>
-                                        <td><?php echo formatPrice($order['total_amount'], 'ILS'); ?></td>
-                                        <td>
-                                            <span class="badge badge-<?php echo $order['status']; ?>">
-                                                <?php echo t('order_status_' . $order['status']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <a href="orders/view.php?id=<?php echo $order['id']; ?>" class="btn btn-sm btn-outline">
-                                                <?php echo t('view'); ?>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        <!-- Total Orders -->
+        <div class="stat-card green">
+            <div class="stat-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-content">
+                <h3><?php echo number_format($stats['total_orders']); ?></h3>
+                <p>Total Orders</p>
+                <span class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 
+                    <?php echo $stats['orders_growth']; ?>% vs last month
+                </span>
+            </div>
+        </div>
+        
+        <!-- Total Products -->
+        <div class="stat-card orange">
+            <div class="stat-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3><?php echo number_format($stats['total_products']); ?></h3>
+                <p>Total Products</p>
+                <span class="stat-info">
+                    <?php echo $stats['active_products']; ?> active
+                </span>
+            </div>
+        </div>
+        
+        <!-- Total Customers -->
+        <div class="stat-card purple">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3><?php echo number_format($stats['total_customers']); ?></h3>
+                <p>Total Customers</p>
+                <span class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 
+                    <?php echo $stats['new_customers']; ?> new this month
+                </span>
             </div>
         </div>
     </div>
     
-    <script src="../assets/js/admin.js"></script>
-</body>
-</html>
+    <!-- Charts Row -->
+    <div class="charts-row">
+        <!-- Sales Chart -->
+        <div class="chart-card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line"></i> Sales Overview</h3>
+                <div class="card-actions">
+                    <select id="sales-period" class="form-control">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Orders Chart -->
+        <div class="chart-card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-pie"></i> Order Status</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="ordersChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Orders & Low Stock -->
+    <div class="info-row">
+        <!-- Recent Orders -->
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-receipt"></i> Recent Orders</h3>
+                <a href="orders/" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($recentOrders as $order): ?>
+                            <tr>
+                                <td><a href="orders/view.php?id=<?php echo $order['id']; ?>">
+                                    #<?php echo $order['order_number']; ?>
+                                </a></td>
+                                <td><?php echo htmlspecialchars($order['customer_name']); ?></td>
+                                <td><?php echo formatCurrency($order['total']); ?></td>
+                                <td>
+                                    <span class="status-badge status-<?php echo $order['status']; ?>">
+                                        <?php echo ucfirst($order['status']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo formatDate($order['created_at']); ?></td>
+                                <td>
+                                    <a href="orders/view.php?id=<?php echo $order['id']; ?>" 
+                                       class="btn-icon" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Low Stock Products -->
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h3>
+                <a href="products/?filter=low_stock" class="btn btn-sm btn-warning">View All</a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($lowStockProducts)): ?>
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>All products are well stocked!</p>
+                    </div>
+                <?php else: ?>
+                    <div class="low-stock-list">
+                        <?php foreach ($lowStockProducts as $product): ?>
+                        <div class="low-stock-item">
+                            <div class="product-info">
+                                <img src="<?php echo $product['image']; ?>" alt="<?php echo htmlspecialchars($product['name_en']); ?>">
+                                <div>
+                                    <h4><?php echo htmlspecialchars($product['name_en']); ?></h4>
+                                    <p class="sku">SKU: <?php echo $product['sku']; ?></p>
+                                </div>
+                            </div>
+                            <div class="stock-info">
+                                <span class="stock-count <?php echo $product['stock_quantity'] == 0 ? 'out-of-stock' : 'low-stock'; ?>">
+                                    <?php echo $product['stock_quantity']; ?> left
+                                </span>
+                                <a href="products/edit.php?id=<?php echo $product['id']; ?>" class="btn btn-sm btn-primary">
+                                    Update Stock
+                                </a>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sales Chart
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+const salesChart = new Chart(salesCtx, {
+    type: 'line',
+    data: {
+        labels: <?php echo json_encode(array_column($salesData, 'date')); ?>,
+        datasets: [{
+            label: 'Sales (ILS)',
+            data: <?php echo json_encode(array_column($salesData, 'total')); ?>,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Orders Status Chart
+const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+const ordersChart = new Chart(ordersCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+        datasets: [{
+            data: [
+                <?php echo $stats['orders_pending']; ?>,
+                <?php echo $stats['orders_processing']; ?>,
+                <?php echo $stats['orders_shipped']; ?>,
+                <?php echo $stats['orders_delivered']; ?>,
+                <?php echo $stats['orders_cancelled']; ?>
+            ],
+            backgroundColor: [
+                '#fbbf24',
+                '#3b82f6',
+                '#8b5cf6',
+                '#10b981',
+                '#ef4444'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+
+<?php include 'includes/footer.php'; ?>
