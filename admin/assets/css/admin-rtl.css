@@ -1,0 +1,171 @@
+/**
+ * Admin Panel RTL Support (Arabic)
+ */
+
+/* Sidebar RTL */
+.admin-sidebar {
+    left: auto;
+    right: 0;
+}
+
+.admin-main {
+    margin-right: 260px;
+    margin-left: 0;
+}
+
+.nav-item i {
+    margin-left: 12px;
+    margin-right: 0;
+}
+
+/* Header RTL */
+.admin-header {
+    text-align: right;
+}
+
+.header-left {
+    margin-right: 0;
+    margin-left: auto;
+}
+
+.header-right {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Tables RTL */
+table {
+    direction: rtl;
+}
+
+th, td {
+    text-align: right;
+}
+
+th:first-child,
+td:first-child {
+    border-radius: 0 8px 8px 0;
+}
+
+th:last-child,
+td:last-child {
+    border-radius: 8px 0 0 8px;
+}
+
+/* Forms RTL */
+.form-group label {
+    text-align: right;
+}
+
+.form-control {
+    text-align: right;
+}
+
+.form-row {
+    direction: rtl;
+}
+
+/* Buttons RTL */
+.btn i {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+/* Cards RTL */
+.stat-card i {
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+/* Alerts RTL */
+.alert i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* Breadcrumbs RTL */
+.breadcrumb {
+    direction: rtl;
+}
+
+.breadcrumb li::before {
+    content: "\\";
+    margin: 0 8px;
+}
+
+/* Dropdown RTL */
+.dropdown-menu {
+    left: auto;
+    right: 0;
+}
+
+/* Pagination RTL */
+.pagination {
+    direction: rtl;
+}
+
+/* Sidebar Footer RTL */
+.sidebar-footer {
+    text-align: center;
+}
+
+.language-switcher {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 15px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.language-switcher a {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.language-switcher a:hover,
+.language-switcher a.active {
+    color: #fff;
+}
+
+.language-switcher span {
+    color: rgba(255,255,255,0.3);
+}
+
+/* Numbers should stay LTR in RTL */
+.price,
+.stat-value,
+.order-number,
+td:has(.badge),
+.quantity {
+    direction: ltr;
+    display: inline-block;
+}
+
+/* Status badges RTL */
+.badge {
+    direction: ltr;
+}
+
+/* Chart containers */
+.chart-container {
+    direction: ltr;
+}
+
+/* Mobile RTL */
+@media (max-width: 768px) {
+    .admin-sidebar {
+        left: auto;
+        right: -260px;
+    }
+    
+    .admin-sidebar.active {
+        right: 0;
+    }
+    
+    .admin-main {
+        margin-right: 0;
+    }
+}
