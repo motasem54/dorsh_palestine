@@ -1,0 +1,68 @@
+# Dorsh Palestine - Robots.txt
+# https://www.dorsh-palestine.com/robots.txt
+
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /includes/
+Disallow: /vendor/
+
+# Disallow user account pages (keep private)
+Disallow: /account/
+Disallow: /cart.php
+Disallow: /checkout.php
+Disallow: /login.php
+Disallow: /register.php
+
+# Disallow search results (to prevent duplicate content)
+Disallow: /shop.php?search=*
+Disallow: /*?search=*
+
+# Allow important pages
+Allow: /index.php
+Allow: /shop.php
+Allow: /product.php
+Allow: /about.php
+Allow: /contact.php
+
+# Sitemap location
+Sitemap: https://www.dorsh-palestine.com/sitemap.xml
+
+# Crawl delay (optional - 1 second between requests)
+Crawl-delay: 1
+
+# Specific rules for different bots
+
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Facebook (for Open Graph previews)
+User-agent: facebookexternalhit
+Allow: /
+
+# Twitter (for Twitter Cards)
+User-agent: Twitterbot
+Allow: /
+
+# Bad bots (block completely)
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
