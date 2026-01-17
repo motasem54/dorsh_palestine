@@ -33,8 +33,9 @@ $current_lang = $_SESSION['lang'] ?? 'en';
     <!-- AOS Animation -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
-    <!-- Custom CSS -->
+    <!-- Custom CSS - Premium Design -->
     <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/premium-components.css">
 </head>
 <body>
 
