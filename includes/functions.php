@@ -1,75 +1,74 @@
 <?php
 /**
- * Dorsch Palestine - Helper Functions
- * All utility functions for the website
+ * Helper Functions
+ * Dorsh Palestine E-Commerce
  */
 
-// Start session if not started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// ============================================================
+// SECURITY & SANITIZATION
+// ============================================================
+
+function sanitize($data) {
+    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
 }
 
+function h($str) {
+    return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+}
+
+// ============================================================
+// USER AUTHENTICATION
+// ============================================================
+
+function isLoggedIn() {
+    return isset($_SESSION['user_id']);
+}
+
+function getCurrentUser() {
+    return $_SESSION['user'] ?? null;
+}
+
+function getUserId() {
+    return $_SESSION['user_id'] ?? null;
+}
+
+// ============================================================
+// LANGUAGE & TRANSLATION
+// ============================================================
+
 /**
- * Translation function
- * @param string $key Translation key
- * @param string $default Default text if translation not found
- * @return string Translated text
+ * Translate text key
+ * @param string $key
+ * @return string
  */
-function t($key, $default = '') {
-    $lang = $_SESSION['lang'] ?? 'en';
+function t($key) {
+    global $translations, $current_lang;
     
-    // Translation arrays
-    $translations = [
-        'en' => [
-            'home' => 'HOME',
-            'products' => 'PRODUCTS',
-            'collections' => 'COLLECTIONS',
-            'about' => 'ABOUT',
-            'contact' => 'CONTACT',
-            'search_products' => 'Search for products...',
-            'wishlist' => 'My Wishlist',
-            'compare' => 'Compare',
-            'cart' => 'Shopping Cart',
-            'chat_whatsapp' => 'Chat on WhatsApp',
-            'ai_assistant' => 'AI Assistant',
-            'dorsch_assistant' => 'Dorsch Assistant',
-            'ask_about_products' => 'Ask me about our products!',
-            'chatbot_welcome' => 'Hello! 👋 I\'m Dorsch Assistant. How can I help you today?',
-            'premium_cookware' => 'Premium Cookware',
-            'lfgb_certified' => 'LFGB Certified',
-            'pressure_cookers' => 'Pressure Cookers',
-            'warranty_info' => 'Warranty Info',
-            'type_message' => 'Type your message...'
-        ],
-        'ar' => [
-            'home' => 'الرئيسية',
-            'products' => 'المنتجات',
-            'collections' => 'المجموعات',
-            'about' => 'من نحن',
-            'contact' => 'اتصل بنا',
-            'search_products' => 'ابحث عن المنتجات...',
-            'wishlist' => 'قائمة الأمنيات',
-            'compare' => 'مقارنة',
-            'cart' => 'سلة التسوق',
-            'chat_whatsapp' => 'تحدث على واتساب',
-            'ai_assistant' => 'المساعد الذكي',
-            'dorsch_assistant' => 'مساعد دورش',
-            'ask_about_products' => 'اسألني عن منتجاتنا!',
-            'chatbot_welcome' => 'مرحباً! 👋 أنا مساعد دورش. كيف يمكنني مساعدتك اليوم؟',
-            'premium_cookware' => 'أدوات طبخ فاخرة',
-            'lfgb_certified' => 'معتمد LFGB',
-            'pressure_cookers' => 'قدور ضغط',
-            'warranty_info' => 'معلومات الضمان',
-            'type_message' => 'اكتب رسالتك...'
-        ]
-    ];
+    $lang = $current_lang ?? 'en';
     
-    // Return translation or default
     if (isset($translations[$lang][$key])) {
         return $translations[$lang][$key];
     }
     
-    return $default ?: $key;
+    // Fallback to English
+    if (isset($translations['en'][$key])) {
+        return $translations['en'][$key];
+    }
+    
+    // Return formatted key if translation not found
+    return ucfirst(str_replace('_', ' ', $key));
+}
+
+/**
+ * Translate database field based on current language
+ * @param array $item
+ * @param string $field
+ * @return string
+ */
+function translate($item, $field) {
+    global $current_lang;
+    $key = $field . '_' . ($current_lang === 'ar' ? 'ar' : 'en');
+    return $item[$key] ?? $item[$field . '_en'] ?? '';
 }
 
 /**
@@ -77,142 +76,358 @@ function t($key, $default = '') {
  * @return bool
  */
 function isRTL() {
-    $lang = $_SESSION['lang'] ?? 'en';
-    $rtlLanguages = ['ar', 'he', 'ur', 'fa'];
-    return in_array($lang, $rtlLanguages);
+    global $current_lang;
+    return isset($current_lang) && $current_lang === 'ar';
 }
 
 /**
- * Get wishlist count from session
- * @return int
+ * Get current language
+ * @return string
  */
-function getWishlistCount() {
-    if (!isset($_SESSION['wishlist'])) {
-        $_SESSION['wishlist'] = [];
-    }
-    return count($_SESSION['wishlist']);
+function getCurrentLang() {
+    global $current_lang;
+    return $current_lang ?? 'en';
 }
 
 /**
- * Get compare count from session
- * @return int
+ * Get text direction
+ * @return string
  */
-function getCompareCount() {
-    if (!isset($_SESSION['compare'])) {
-        $_SESSION['compare'] = [];
-    }
-    return count($_SESSION['compare']);
+function getDir() {
+    return isRTL() ? 'rtl' : 'ltr';
 }
 
 /**
- * Get cart count from session
+ * Get language attribute
+ * @return string
+ */
+function getLang() {
+    return getCurrentLang();
+}
+
+// ============================================================
+// CART FUNCTIONS
+// ============================================================
+
+/**
+ * Get cart items count
  * @return int
  */
 function getCartCount() {
-    if (!isset($_SESSION['cart'])) {
-        $_SESSION['cart'] = [];
-    }
+    global $db;
     
-    $count = 0;
-    foreach ($_SESSION['cart'] as $item) {
-        $count += isset($item['quantity']) ? $item['quantity'] : 1;
+    if (isLoggedIn()) {
+        $result = $db->query(
+            "SELECT COALESCE(SUM(quantity), 0) as count FROM cart WHERE user_id = ?",
+            [getUserId()]
+        )->fetch();
+        return (int)($result['count'] ?? 0);
+    } else {
+        return isset($_SESSION['cart']) ? array_sum(array_column($_SESSION['cart'], 'quantity')) : 0;
     }
-    return $count;
 }
 
 /**
- * Get cart total price
- * @return float
+ * Get cart items
+ * @return array
  */
-function getCartTotal() {
-    if (!isset($_SESSION['cart'])) {
-        return 0;
-    }
+function getCartItems() {
+    global $db;
     
-    $total = 0;
-    foreach ($_SESSION['cart'] as $item) {
-        $quantity = isset($item['quantity']) ? $item['quantity'] : 1;
-        $price = isset($item['price']) ? $item['price'] : 0;
-        $total += $quantity * $price;
+    if (isLoggedIn()) {
+        return $db->query(
+            "SELECT c.*, p.name_en, p.name_ar, p.price, p.image 
+            FROM cart c 
+            JOIN products p ON c.product_id = p.id 
+            WHERE c.user_id = ?",
+            [getUserId()]
+        )->fetchAll();
+    } else {
+        return $_SESSION['cart'] ?? [];
     }
-    return $total;
 }
 
 /**
- * Add item to wishlist
- * @param int $productId
+ * Add product to cart
+ * @param int $product_id
+ * @param int $quantity
  * @return bool
  */
-function addToWishlist($productId) {
-    if (!isset($_SESSION['wishlist'])) {
-        $_SESSION['wishlist'] = [];
-    }
+function addToCart($product_id, $quantity = 1) {
+    global $db;
     
-    if (!in_array($productId, $_SESSION['wishlist'])) {
-        $_SESSION['wishlist'][] = $productId;
+    if (isLoggedIn()) {
+        // Check if already in cart
+        $existing = $db->query(
+            "SELECT * FROM cart WHERE user_id = ? AND product_id = ?",
+            [getUserId(), $product_id]
+        )->fetch();
+        
+        if ($existing) {
+            // Update quantity
+            $db->query(
+                "UPDATE cart SET quantity = quantity + ? WHERE user_id = ? AND product_id = ?",
+                [$quantity, getUserId(), $product_id]
+            );
+        } else {
+            // Insert new
+            $db->query(
+                "INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)",
+                [getUserId(), $product_id, $quantity]
+            );
+        }
+        return true;
+    } else {
+        // Session-based cart
+        if (!isset($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
+        
+        if (isset($_SESSION['cart'][$product_id])) {
+            $_SESSION['cart'][$product_id]['quantity'] += $quantity;
+        } else {
+            $_SESSION['cart'][$product_id] = ['quantity' => $quantity];
+        }
         return true;
     }
-    return false;
 }
 
 /**
- * Remove item from wishlist
- * @param int $productId
+ * Remove product from cart
+ * @param int $product_id
  * @return bool
  */
-function removeFromWishlist($productId) {
-    if (isset($_SESSION['wishlist'])) {
-        $key = array_search($productId, $_SESSION['wishlist']);
-        if ($key !== false) {
-            unset($_SESSION['wishlist'][$key]);
-            $_SESSION['wishlist'] = array_values($_SESSION['wishlist']);
+function removeFromCart($product_id) {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $db->query(
+            "DELETE FROM cart WHERE user_id = ? AND product_id = ?",
+            [getUserId(), $product_id]
+        );
+        return true;
+    } else {
+        if (isset($_SESSION['cart'][$product_id])) {
+            unset($_SESSION['cart'][$product_id]);
+        }
+        return true;
+    }
+}
+
+/**
+ * Clear cart
+ * @return bool
+ */
+function clearCart() {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $db->query("DELETE FROM cart WHERE user_id = ?", [getUserId()]);
+        return true;
+    } else {
+        $_SESSION['cart'] = [];
+        return true;
+    }
+}
+
+// ============================================================
+// WISHLIST FUNCTIONS
+// ============================================================
+
+/**
+ * Get wishlist items count
+ * @return int
+ */
+function getWishlistCount() {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $result = $db->query(
+            "SELECT COUNT(*) as count FROM wishlist WHERE user_id = ?",
+            [getUserId()]
+        )->fetch();
+        return (int)($result['count'] ?? 0);
+    } else {
+        return isset($_SESSION['wishlist']) ? count($_SESSION['wishlist']) : 0;
+    }
+}
+
+/**
+ * Get wishlist items
+ * @return array
+ */
+function getWishlistItems() {
+    global $db;
+    
+    if (isLoggedIn()) {
+        return $db->query(
+            "SELECT w.*, p.name_en, p.name_ar, p.price, p.image 
+            FROM wishlist w 
+            JOIN products p ON w.product_id = p.id 
+            WHERE w.user_id = ?",
+            [getUserId()]
+        )->fetchAll();
+    } else {
+        return $_SESSION['wishlist'] ?? [];
+    }
+}
+
+/**
+ * Add product to wishlist
+ * @param int $product_id
+ * @return bool
+ */
+function addToWishlist($product_id) {
+    global $db;
+    
+    if (isLoggedIn()) {
+        // Check if already in wishlist
+        $existing = $db->query(
+            "SELECT * FROM wishlist WHERE user_id = ? AND product_id = ?",
+            [getUserId(), $product_id]
+        )->fetch();
+        
+        if (!$existing) {
+            $db->query(
+                "INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)",
+                [getUserId(), $product_id]
+            );
             return true;
         }
+        return false;
+    } else {
+        // Session-based wishlist
+        if (!isset($_SESSION['wishlist'])) {
+            $_SESSION['wishlist'] = [];
+        }
+        
+        if (!in_array($product_id, $_SESSION['wishlist'])) {
+            $_SESSION['wishlist'][] = $product_id;
+            return true;
+        }
+        return false;
     }
-    return false;
+}
+
+/**
+ * Remove product from wishlist
+ * @param int $product_id
+ * @return bool
+ */
+function removeFromWishlist($product_id) {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $db->query(
+            "DELETE FROM wishlist WHERE user_id = ? AND product_id = ?",
+            [getUserId(), $product_id]
+        );
+        return true;
+    } else {
+        if (isset($_SESSION['wishlist'])) {
+            $key = array_search($product_id, $_SESSION['wishlist']);
+            if ($key !== false) {
+                unset($_SESSION['wishlist'][$key]);
+                $_SESSION['wishlist'] = array_values($_SESSION['wishlist']);
+            }
+        }
+        return true;
+    }
 }
 
 /**
  * Check if product is in wishlist
- * @param int $productId
+ * @param int $product_id
  * @return bool
  */
-function isInWishlist($productId) {
-    if (!isset($_SESSION['wishlist'])) {
-        return false;
+function isInWishlist($product_id) {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $result = $db->query(
+            "SELECT COUNT(*) as count FROM wishlist WHERE user_id = ? AND product_id = ?",
+            [getUserId(), $product_id]
+        )->fetch();
+        return (int)($result['count'] ?? 0) > 0;
+    } else {
+        return isset($_SESSION['wishlist']) && in_array($product_id, $_SESSION['wishlist']);
     }
-    return in_array($productId, $_SESSION['wishlist']);
 }
 
 /**
- * Add item to compare
- * @param int $productId
+ * Clear wishlist
  * @return bool
  */
-function addToCompare($productId) {
+function clearWishlist() {
+    global $db;
+    
+    if (isLoggedIn()) {
+        $db->query("DELETE FROM wishlist WHERE user_id = ?", [getUserId()]);
+        return true;
+    } else {
+        $_SESSION['wishlist'] = [];
+        return true;
+    }
+}
+
+// ============================================================
+// COMPARE FUNCTIONS
+// ============================================================
+
+/**
+ * Get compare items count
+ * @return int
+ */
+function getCompareCount() {
+    return isset($_SESSION['compare']) ? count($_SESSION['compare']) : 0;
+}
+
+/**
+ * Get compare items
+ * @return array
+ */
+function getCompareItems() {
+    global $db;
+    
+    if (isset($_SESSION['compare']) && !empty($_SESSION['compare'])) {
+        $ids = implode(',', array_map('intval', $_SESSION['compare']));
+        return $db->query(
+            "SELECT * FROM products WHERE id IN ($ids)"
+        )->fetchAll();
+    }
+    return [];
+}
+
+/**
+ * Add product to compare
+ * @param int $product_id
+ * @return bool
+ */
+function addToCompare($product_id) {
     if (!isset($_SESSION['compare'])) {
         $_SESSION['compare'] = [];
     }
     
+    // Max 4 products for comparison
     if (count($_SESSION['compare']) >= 4) {
-        return false; // Max 4 items for comparison
+        return false;
     }
     
-    if (!in_array($productId, $_SESSION['compare'])) {
-        $_SESSION['compare'][] = $productId;
+    if (!in_array($product_id, $_SESSION['compare'])) {
+        $_SESSION['compare'][] = $product_id;
         return true;
     }
     return false;
 }
 
 /**
- * Remove item from compare
- * @param int $productId
+ * Remove product from compare
+ * @param int $product_id
  * @return bool
  */
-function removeFromCompare($productId) {
+function removeFromCompare($product_id) {
     if (isset($_SESSION['compare'])) {
-        $key = array_search($productId, $_SESSION['compare']);
+        $key = array_search($product_id, $_SESSION['compare']);
         if ($key !== false) {
             unset($_SESSION['compare'][$key]);
             $_SESSION['compare'] = array_values($_SESSION['compare']);
@@ -224,253 +439,214 @@ function removeFromCompare($productId) {
 
 /**
  * Check if product is in compare
- * @param int $productId
+ * @param int $product_id
  * @return bool
  */
-function isInCompare($productId) {
-    if (!isset($_SESSION['compare'])) {
-        return false;
-    }
-    return in_array($productId, $_SESSION['compare']);
+function isInCompare($product_id) {
+    return isset($_SESSION['compare']) && in_array($product_id, $_SESSION['compare']);
 }
 
 /**
- * Add item to cart
- * @param int $productId
- * @param int $quantity
- * @param float $price
- * @param array $options
+ * Clear compare list
  * @return bool
  */
-function addToCart($productId, $quantity = 1, $price = 0, $options = []) {
-    if (!isset($_SESSION['cart'])) {
-        $_SESSION['cart'] = [];
-    }
-    
-    // Check if product already in cart
-    $found = false;
-    foreach ($_SESSION['cart'] as &$item) {
-        if ($item['id'] == $productId) {
-            $item['quantity'] += $quantity;
-            $found = true;
-            break;
-        }
-    }
-    
-    // Add new item if not found
-    if (!$found) {
-        $_SESSION['cart'][] = [
-            'id' => $productId,
-            'quantity' => $quantity,
-            'price' => $price,
-            'options' => $options,
-            'added_at' => time()
-        ];
-    }
-    
+function clearCompare() {
+    $_SESSION['compare'] = [];
     return true;
 }
 
+// ============================================================
+// ORDER FUNCTIONS
+// ============================================================
+
 /**
- * Remove item from cart
- * @param int $productId
- * @return bool
+ * Generate unique order number
+ * @return string
  */
-function removeFromCart($productId) {
-    if (isset($_SESSION['cart'])) {
-        foreach ($_SESSION['cart'] as $key => $item) {
-            if ($item['id'] == $productId) {
-                unset($_SESSION['cart'][$key]);
-                $_SESSION['cart'] = array_values($_SESSION['cart']);
-                return true;
-            }
-        }
-    }
-    return false;
+function generateOrderNumber() {
+    return 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 }
 
 /**
- * Update cart item quantity
- * @param int $productId
- * @param int $quantity
- * @return bool
+ * Get order status color
+ * @param string $status
+ * @return string
  */
-function updateCartQuantity($productId, $quantity) {
-    if (isset($_SESSION['cart'])) {
-        foreach ($_SESSION['cart'] as &$item) {
-            if ($item['id'] == $productId) {
-                if ($quantity <= 0) {
-                    return removeFromCart($productId);
-                }
-                $item['quantity'] = $quantity;
-                return true;
-            }
-        }
+function getStatusColor($status) {
+    switch($status) {
+        case 'pending':
+            return 'warning';
+        case 'processing':
+            return 'info';
+        case 'shipped':
+            return 'primary';
+        case 'delivered':
+        case 'completed':
+            return 'success';
+        case 'cancelled':
+            return 'danger';
+        default:
+            return 'secondary';
     }
-    return false;
 }
 
-/**
- * Clear entire cart
- * @return void
- */
-function clearCart() {
-    $_SESSION['cart'] = [];
-}
+// ============================================================
+// PRICE & CURRENCY
+// ============================================================
 
 /**
  * Format price with currency
  * @param float $price
- * @param string $currency
  * @return string
  */
-function formatPrice($price, $currency = 'ILS') {
-    $symbols = [
-        'ILS' => '₪',
-        'USD' => '$',
-        'EUR' => '€',
-        'GBP' => '£'
-    ];
-    
-    $symbol = isset($symbols[$currency]) ? $symbols[$currency] : $currency;
-    $formatted = number_format($price, 2);
-    
-    // RTL languages put symbol after
-    if (isRTL()) {
-        return $formatted . ' ' . $symbol;
-    }
-    
-    return $symbol . ' ' . $formatted;
+function formatPrice($price) {
+    return '$' . number_format($price, 2);
 }
 
 /**
- * Sanitize input
- * @param string $data
+ * Calculate discount percentage
+ * @param float $original
+ * @param float $sale
+ * @return int
+ */
+function getDiscountPercent($original, $sale) {
+    if ($original <= 0) return 0;
+    return round((($original - $sale) / $original) * 100);
+}
+
+// ============================================================
+// DATE & TIME
+// ============================================================
+
+/**
+ * Format date for display
+ * @param string $date
  * @return string
  */
-function sanitize($data) {
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
-    return $data;
+function formatDate($date) {
+    return date('M d, Y', strtotime($date));
 }
 
 /**
- * Check if user is logged in
- * @return bool
- */
-function isLoggedIn() {
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
-}
-
-/**
- * Get current user ID
- * @return int|null
- */
-function getCurrentUserId() {
-    return isLoggedIn() ? $_SESSION['user_id'] : null;
-}
-
-/**
- * Redirect to URL
- * @param string $url
- * @return void
- */
-function redirect($url) {
-    header("Location: " . $url);
-    exit();
-}
-
-/**
- * Show alert message
- * @param string $message
- * @param string $type (success, error, warning, info)
+ * Format datetime for display
+ * @param string $datetime
  * @return string
  */
-function showAlert($message, $type = 'info') {
-    $icons = [
-        'success' => 'fa-check-circle',
-        'error' => 'fa-exclamation-circle',
-        'warning' => 'fa-exclamation-triangle',
-        'info' => 'fa-info-circle'
-    ];
-    
-    $icon = isset($icons[$type]) ? $icons[$type] : $icons['info'];
-    
-    return '
-    <div class="alert alert-' . $type . ' alert-dismissible fade show" role="alert">
-        <i class="fas ' . $icon . '"></i> ' . htmlspecialchars($message) . '
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    ';
+function formatDateTime($datetime) {
+    return date('M d, Y h:i A', strtotime($datetime));
 }
 
 /**
- * Generate random string
- * @param int $length
- * @return string
- */
-function generateRandomString($length = 10) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $randomString = '';
-    for ($i = 0; $i < $length; $i++) {
-        $randomString .= $characters[rand(0, strlen($characters) - 1)];
-    }
-    return $randomString;
-}
-
-/**
- * Get current page name
- * @return string
- */
-function getCurrentPage() {
-    return basename($_SERVER['PHP_SELF']);
-}
-
-/**
- * Check if current page is active
- * @param string $page
- * @return bool
- */
-function isActivePage($page) {
-    return getCurrentPage() === $page;
-}
-
-/**
- * Time ago function
+ * Get time ago
  * @param string $datetime
  * @return string
  */
 function timeAgo($datetime) {
-    $timestamp = strtotime($datetime);
-    $difference = time() - $timestamp;
+    $time = strtotime($datetime);
+    $diff = time() - $time;
     
-    $periods = [
-        'year' => 31536000,
-        'month' => 2592000,
-        'week' => 604800,
-        'day' => 86400,
-        'hour' => 3600,
-        'minute' => 60,
-        'second' => 1
-    ];
+    if ($diff < 60) return 'Just now';
+    if ($diff < 3600) return floor($diff / 60) . ' min ago';
+    if ($diff < 86400) return floor($diff / 3600) . ' hours ago';
+    if ($diff < 604800) return floor($diff / 86400) . ' days ago';
     
-    foreach ($periods as $key => $value) {
-        if ($difference >= $value) {
-            $time = floor($difference / $value);
-            return $time . ' ' . $key . ($time > 1 ? 's' : '') . ' ago';
+    return formatDate($datetime);
+}
+
+// ============================================================
+// URL & ROUTING
+// ============================================================
+
+/**
+ * Redirect to URL
+ * @param string $url
+ */
+function redirect($url) {
+    header("Location: {$url}");
+    exit;
+}
+
+/**
+ * Get current page URL
+ * @return string
+ */
+function getCurrentUrl() {
+    return $_SERVER['REQUEST_URI'];
+}
+
+/**
+ * Check if current page
+ * @param string $page
+ * @return bool
+ */
+function isCurrentPage($page) {
+    return strpos($_SERVER['PHP_SELF'], $page) !== false;
+}
+
+// ============================================================
+// ADMIN FUNCTIONS
+// ============================================================
+
+if (!function_exists('logAdminActivity')) {
+    function logAdminActivity($admin_id, $action, $description) {
+        global $db;
+        try {
+            $db->query(
+                "INSERT INTO admin_activity_logs (admin_id, action, description, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                [$admin_id, $action, $description, $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '']
+            );
+        } catch (Exception $e) {
+            error_log("Failed to log admin activity: " . $e->getMessage());
         }
     }
-    
-    return 'Just now';
 }
 
-// Initialize default session values
-if (!isset($_SESSION['lang'])) {
-    $_SESSION['lang'] = 'en';
+// ============================================================
+// FLASH MESSAGES
+// ============================================================
+
+/**
+ * Set flash message
+ * @param string $type (success, error, warning, info)
+ * @param string $message
+ */
+function setFlash($type, $message) {
+    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
 }
 
-if (!isset($_SESSION['currency'])) {
-    $_SESSION['currency'] = 'ILS';
+/**
+ * Get and clear flash message
+ * @return array|null
+ */
+function getFlash() {
+    if (isset($_SESSION['flash'])) {
+        $flash = $_SESSION['flash'];
+        unset($_SESSION['flash']);
+        return $flash;
+    }
+    return null;
 }
+
+// ============================================================
+// VALIDATION
+// ============================================================
+
+/**
+ * Validate email
+ * @param string $email
+ * @return bool
+ */
+function isValidEmail($email) {
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+/**
+ * Validate phone number
+ * @param string $phone
+ * @return bool
+ */
+function isValidPhone($phone) {
+    return preg_match('/^[0-9+\-\s()]{8,20}$/', $phone);
+}
+
 ?>
