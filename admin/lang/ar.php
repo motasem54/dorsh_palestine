@@ -27,6 +27,11 @@ return [
     'total' => 'الإجمالي',
     'date' => 'التاريخ',
     'created_at' => 'تاريخ الإنشاء',
+    'none' => 'لا يوجد',
+    'recommended' => 'الموصى به',
+    'order' => 'الترتيب',
+    'type' => 'النوع',
+    'parent' => 'الأساسي',
     
     // Navigation
     'menu' => 'القائمة',
@@ -75,6 +80,9 @@ return [
     'category_name_en' => 'اسم الفئة (إنجليزي)',
     'category_name_ar' => 'اسم الفئة (عربي)',
     'slug' => 'الرابط',
+    'main_category' => 'فئة رئيسية',
+    'sub_category' => 'فئة فرعية',
+    'display_order' => 'ترتيب العرض',
     
     // Orders
     'order_number' => 'رقم الطلب',
