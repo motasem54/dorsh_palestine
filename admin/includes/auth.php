@@ -21,7 +21,8 @@ function isAdminLoggedIn() {
  */
 function requireAdminLogin() {
     if (!isAdminLoggedIn()) {
-        header('Location: /admin/login.php');
+        $redirect = $_SERVER['PHP_SELF'];
+        header('Location: ' . (strpos($redirect, '/admin/') !== false ? '/admin/login.php' : 'login.php'));
         exit;
     }
 }
@@ -36,10 +37,10 @@ function getCurrentAdmin() {
     }
     
     return [
-        'id' => $_SESSION['admin_id'],
-        'name' => $_SESSION['admin_name'],
-        'email' => $_SESSION['admin_email'],
-        'role' => $_SESSION['admin_role']
+        'id' => $_SESSION['admin_id'] ?? null,
+        'username' => $_SESSION['admin']['username'] ?? '',
+        'email' => $_SESSION['admin']['email'] ?? '',
+        'role' => $_SESSION['admin']['role'] ?? 'staff'
     ];
 }
 
@@ -54,40 +55,11 @@ function hasPermission($permission) {
     }
     
     // Super admin has all permissions
-    if ($_SESSION['admin_role'] === 'super_admin') {
+    if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] === 'super_admin') {
         return true;
     }
     
-    global $db;
-    
-    // Check permission in database
-    $result = $db->query(
-        "SELECT COUNT(*) as count FROM staff_permissions 
-        WHERE staff_id = ? AND permission = ?",
-        [$_SESSION['admin_id'], $permission]
-    )->fetch();
-    
-    return $result['count'] > 0;
-}
-
-/**
- * Log admin activity
- * @param int $admin_id
- * @param string $action
- * @param string $description
- */
-function logAdminActivity($admin_id, $action, $description) {
-    global $db;
-    
-    try {
-        $db->query(
-            "INSERT INTO admin_activity_log (admin_id, action, description, ip_address, created_at) 
-            VALUES (?, ?, ?, ?, NOW())",
-            [$admin_id, $action, $description, $_SERVER['REMOTE_ADDR']]
-        );
-    } catch (Exception $e) {
-        error_log('Failed to log admin activity: ' . $e->getMessage());
-    }
+    return false;
 }
 
 /**
@@ -101,7 +73,7 @@ function logFailedLogin($email) {
         $db->query(
             "INSERT INTO login_attempts (email, ip_address, attempt_time) 
             VALUES (?, ?, NOW())",
-            [$email, $_SERVER['REMOTE_ADDR']]
+            [$email, $_SERVER['REMOTE_ADDR'] ?? '']
         );
     } catch (Exception $e) {
         error_log('Failed to log login attempt: ' . $e->getMessage());
@@ -117,77 +89,76 @@ function getDashboardStats() {
     
     // Total sales
     $total_sales = $db->query(
-        "SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status IN ('completed', 'processing')"
-    )->fetch()['total'];
+        "SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status IN ('delivered', 'processing')"
+    )->fetch()['total'] ?? 0;
     
     // Total orders
     $total_orders = $db->query(
         "SELECT COUNT(*) as count FROM orders"
-    )->fetch()['count'];
+    )->fetch()['count'] ?? 0;
     
     // Total products
     $total_products = $db->query(
         "SELECT COUNT(*) as count FROM products WHERE status = 'active'"
-    )->fetch()['count'];
+    )->fetch()['count'] ?? 0;
     
     // Total customers
     $total_customers = $db->query(
         "SELECT COUNT(*) as count FROM users WHERE role = 'customer'"
-    )->fetch()['count'];
+    )->fetch()['count'] ?? 0;
     
     // Low stock count
     $low_stock_count = $db->query(
-        "SELECT COUNT(*) as count FROM products WHERE stock_quantity < 10 AND status = 'active'"
-    )->fetch()['count'];
+        "SELECT COUNT(*) as count FROM products WHERE stock < 10 AND status = 'active'"
+    )->fetch()['count'] ?? 0;
     
     // Today's sales
     $today_sales = $db->query(
         "SELECT COALESCE(SUM(total), 0) as total FROM orders 
-        WHERE DATE(created_at) = CURDATE() AND status IN ('completed', 'processing')"
-    )->fetch()['total'];
+        WHERE DATE(created_at) = CURDATE() AND status IN ('delivered', 'processing')"
+    )->fetch()['total'] ?? 0;
     
     // Pending orders
     $pending_orders = $db->query(
         "SELECT COUNT(*) as count FROM orders WHERE status = 'pending'"
-    )->fetch()['count'];
+    )->fetch()['count'] ?? 0;
     
     // Processing orders
     $processing_orders = $db->query(
         "SELECT COUNT(*) as count FROM orders WHERE status = 'processing'"
-    )->fetch()['count'];
+    )->fetch()['count'] ?? 0;
     
     // Completed today
     $completed_today = $db->query(
         "SELECT COUNT(*) as count FROM orders 
-        WHERE DATE(created_at) = CURDATE() AND status = 'completed'"
-    )->fetch()['count'];
+        WHERE DATE(created_at) = CURDATE() AND status = 'delivered'"
+    )->fetch()['count'] ?? 0;
     
     // Average order value
     $avg_order_value = $db->query(
-        "SELECT COALESCE(AVG(total), 0) as avg FROM orders WHERE status IN ('completed', 'processing')"
-    )->fetch()['avg'];
+        "SELECT COALESCE(AVG(total), 0) as avg FROM orders WHERE status IN ('delivered', 'processing')"
+    )->fetch()['avg'] ?? 0;
     
     // Recent orders
     $recent_orders = $db->query(
-        "SELECT o.*, CONCAT(u.first_name, ' ', u.last_name) as customer_name 
+        "SELECT o.*, CONCAT(o.first_name, ' ', o.last_name) as customer_name 
         FROM orders o 
-        LEFT JOIN users u ON o.user_id = u.id 
         ORDER BY o.created_at DESC 
         LIMIT 5"
-    )->fetchAll();
+    )->fetchAll() ?? [];
     
     // Top products
     $top_products = $db->query(
         "SELECT p.*, 
         COALESCE(SUM(oi.quantity), 0) as total_sold,
-        COALESCE(SUM(oi.quantity * oi.price), 0) as revenue
+        COALESCE(SUM(oi.total), 0) as revenue
         FROM products p
         LEFT JOIN order_items oi ON p.id = oi.product_id
         WHERE p.status = 'active'
         GROUP BY p.id
         ORDER BY total_sold DESC
         LIMIT 5"
-    )->fetchAll();
+    )->fetchAll() ?? [];
     
     return [
         'total_sales' => $total_sales,
@@ -202,26 +173,8 @@ function getDashboardStats() {
         'avg_order_value' => $avg_order_value,
         'recent_orders' => $recent_orders,
         'top_products' => $top_products,
-        'sales_change' => 15.5, // Calculate from previous month
-        'orders_change' => 12.3,
-        'customers_new' => 23
+        'sales_change' => 0,
+        'orders_change' => 0,
+        'customers_new' => 0
     ];
-}
-
-/**
- * Get status badge color
- * @param string $status
- * @return string
- */
-function getStatusColor($status) {
-    $colors = [
-        'pending' => 'warning',
-        'processing' => 'info',
-        'completed' => 'success',
-        'cancelled' => 'danger',
-        'shipped' => 'primary',
-        'delivered' => 'success'
-    ];
-    
-    return $colors[$status] ?? 'secondary';
 }

@@ -38,6 +38,21 @@ class Database {
         return $this->connection;
     }
     
+    public function query($sql, $params = []) {
+        try {
+            $stmt = $this->connection->prepare($sql);
+            $stmt->execute($params);
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Query Error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    public function lastInsertId() {
+        return $this->connection->lastInsertId();
+    }
+    
     // Prevent cloning
     private function __clone() {}
     
@@ -91,4 +106,7 @@ function countRows($table, $where = '', $params = []) {
     $result = fetchOne($sql, $params);
     return $result ? (int)$result['count'] : 0;
 }
+
+// Initialize global $db variable for backward compatibility
+$db = Database::getInstance();
 ?>
