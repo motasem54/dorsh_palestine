@@ -3,6 +3,7 @@ require_once 'includes/config.php';
 require_once 'includes/database.php';
 require_once 'includes/functions.php';
 require_once 'includes/language.php';
+require_once 'includes/email.php';
 
 $page_title = t('contact');
 
@@ -12,11 +13,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = sanitize($_POST['subject']);
     $message = sanitize($_POST['message']);
     
-    // Save to database (contact_messages table)
+    // Save to database
     $db->query(
         "INSERT INTO contact_messages (name, email, subject, message, created_at) VALUES (?, ?, ?, ?, NOW())",
         [$name, $email, $subject, $message]
     );
+    
+    // Send notification email to admin
+    $emailService = new EmailService();
+    $emailService->sendContactNotification([
+        'name' => $name,
+        'email' => $email,
+        'subject' => $subject,
+        'message' => $message
+    ]);
     
     $success = t('message_sent_success');
 }
