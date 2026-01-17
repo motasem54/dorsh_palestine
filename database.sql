@@ -1,395 +1,330 @@
 -- Dorsh Palestine E-Commerce Database Schema
+-- Complete Database with All Tables
 -- Created: January 2026
+-- Last Updated: January 17, 2026
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
--- --------------------------------------------------------
--- Table structure for table `users`
--- --------------------------------------------------------
+-- ============================================================
+-- USERS & AUTHENTICATION
+-- ============================================================
 
+-- Table: users (Customers)
 CREATE TABLE `users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `username` varchar(100) NOT NULL,
-  `email` varchar(150) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `full_name` varchar(200) DEFAULT NULL,
-  `phone` varchar(20) DEFAULT NULL,
-  `address` text DEFAULT NULL,
-  `city` varchar(100) DEFAULT NULL,
-  `country` varchar(100) DEFAULT 'Palestine',
-  `user_type` enum('customer','admin','staff') DEFAULT 'customer',
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name` VARCHAR(100) NOT NULL,
+  `email` VARCHAR(150) NOT NULL UNIQUE,
+  `password` VARCHAR(255) NOT NULL,
+  `phone` VARCHAR(20) DEFAULT NULL,
+  `address` TEXT DEFAULT NULL,
+  `city` VARCHAR(100) DEFAULT NULL,
+  `postal_code` VARCHAR(20) DEFAULT NULL,
+  `country` VARCHAR(100) DEFAULT 'Palestine',
+  `role` ENUM('customer', 'admin') DEFAULT 'customer',
+  `status` ENUM('active', 'inactive', 'blocked') DEFAULT 'active',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_email` (`email`),
+  INDEX `idx_role` (`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `categories`
--- --------------------------------------------------------
+-- Table: admins (Admin Panel Users)
+CREATE TABLE `admins` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(100) NOT NULL UNIQUE,
+  `email` VARCHAR(150) NOT NULL UNIQUE,
+  `password` VARCHAR(255) NOT NULL,
+  `full_name` VARCHAR(200) DEFAULT NULL,
+  `role` ENUM('super_admin', 'admin', 'manager', 'staff') DEFAULT 'staff',
+  `status` ENUM('active', 'inactive') DEFAULT 'active',
+  `last_login` TIMESTAMP NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: password_resets
+CREATE TABLE `password_resets` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) NOT NULL,
+  `token` VARCHAR(255) NOT NULL,
+  `expires_at` TIMESTAMP NOT NULL,
+  `used` TINYINT(1) DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_token` (`token`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- PRODUCTS & CATEGORIES
+-- ============================================================
+
+-- Table: categories (Nested Categories with Images)
 CREATE TABLE `categories` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name_en` varchar(200) NOT NULL,
-  `name_ar` varchar(200) NOT NULL,
-  `slug` varchar(200) NOT NULL,
-  `description_en` text DEFAULT NULL,
-  `description_ar` text DEFAULT NULL,
-  `image` varchar(255) DEFAULT NULL,
-  `parent_id` int(11) DEFAULT NULL,
-  `display_order` int(11) DEFAULT 0,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `name_en` VARCHAR(200) NOT NULL,
+  `name_ar` VARCHAR(200) NOT NULL,
+  `slug` VARCHAR(200) NOT NULL UNIQUE,
+  `description_en` TEXT DEFAULT NULL,
+  `description_ar` TEXT DEFAULT NULL,
+  `image` VARCHAR(255) DEFAULT NULL,
+  `parent_id` INT(11) DEFAULT NULL,
+  `display_order` INT(11) DEFAULT 0,
+  `status` ENUM('active', 'inactive') DEFAULT 'active',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `slug` (`slug`),
-  KEY `parent_id` (`parent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_parent` (`parent_id`),
+  INDEX `idx_slug` (`slug`),
+  INDEX `idx_order` (`display_order`),
+  FOREIGN KEY (`parent_id`) REFERENCES `categories`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `products`
--- --------------------------------------------------------
-
+-- Table: products
 CREATE TABLE `products` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name_en` varchar(255) NOT NULL,
-  `name_ar` varchar(255) NOT NULL,
-  `slug` varchar(255) NOT NULL,
-  `description_en` text DEFAULT NULL,
-  `description_ar` text DEFAULT NULL,
-  `short_description_en` text DEFAULT NULL,
-  `short_description_ar` text DEFAULT NULL,
-  `category_id` int(11) NOT NULL,
-  `price` decimal(10,2) NOT NULL,
-  `compare_price` decimal(10,2) DEFAULT NULL,
-  `cost_price` decimal(10,2) DEFAULT NULL,
-  `sku` varchar(100) DEFAULT NULL,
-  `barcode` varchar(100) DEFAULT NULL,
-  `quantity` int(11) DEFAULT 0,
-  `weight` decimal(10,2) DEFAULT NULL,
-  `featured_image` varchar(255) DEFAULT NULL,
-  `is_featured` tinyint(1) DEFAULT 0,
-  `is_active` tinyint(1) DEFAULT 1,
-  `views` int(11) DEFAULT 0,
-  `sales_count` int(11) DEFAULT 0,
-  `meta_title_en` varchar(255) DEFAULT NULL,
-  `meta_title_ar` varchar(255) DEFAULT NULL,
-  `meta_description_en` text DEFAULT NULL,
-  `meta_description_ar` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `name_en` VARCHAR(255) NOT NULL,
+  `name_ar` VARCHAR(255) NOT NULL,
+  `slug` VARCHAR(255) NOT NULL UNIQUE,
+  `description_en` TEXT DEFAULT NULL,
+  `description_ar` TEXT DEFAULT NULL,
+  `short_description_en` TEXT DEFAULT NULL,
+  `short_description_ar` TEXT DEFAULT NULL,
+  `category_id` INT(11) NOT NULL,
+  `price` DECIMAL(10,2) NOT NULL,
+  `compare_price` DECIMAL(10,2) DEFAULT NULL,
+  `cost_price` DECIMAL(10,2) DEFAULT NULL,
+  `sku` VARCHAR(100) DEFAULT NULL UNIQUE,
+  `stock` INT(11) DEFAULT 0,
+  `weight` DECIMAL(10,2) DEFAULT NULL,
+  `image` VARCHAR(255) DEFAULT NULL,
+  `featured` TINYINT(1) DEFAULT 0,
+  `status` ENUM('active', 'inactive', 'draft') DEFAULT 'active',
+  `views` INT(11) DEFAULT 0,
+  `sales_count` INT(11) DEFAULT 0,
+  `meta_title_en` VARCHAR(255) DEFAULT NULL,
+  `meta_title_ar` VARCHAR(255) DEFAULT NULL,
+  `meta_description_en` TEXT DEFAULT NULL,
+  `meta_description_ar` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `slug` (`slug`),
-  KEY `category_id` (`category_id`),
-  KEY `sku` (`sku`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_category` (`category_id`),
+  INDEX `idx_slug` (`slug`),
+  INDEX `idx_sku` (`sku`),
+  INDEX `idx_featured` (`featured`),
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `product_images`
--- --------------------------------------------------------
-
+-- Table: product_images
 CREATE TABLE `product_images` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `product_id` int(11) NOT NULL,
-  `image_path` varchar(255) NOT NULL,
-  `display_order` int(11) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `product_id` INT(11) NOT NULL,
+  `image` VARCHAR(255) NOT NULL,
+  `display_order` INT(11) DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_product` (`product_id`),
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `product_variants`
--- --------------------------------------------------------
+-- ============================================================
+-- ORDERS & TRANSACTIONS
+-- ============================================================
 
-CREATE TABLE `product_variants` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `product_id` int(11) NOT NULL,
-  `variant_name_en` varchar(100) DEFAULT NULL,
-  `variant_name_ar` varchar(100) DEFAULT NULL,
-  `variant_value_en` varchar(100) NOT NULL,
-  `variant_value_ar` varchar(100) NOT NULL,
-  `price_adjustment` decimal(10,2) DEFAULT 0.00,
-  `quantity` int(11) DEFAULT 0,
-  `sku` varchar(100) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `orders`
--- --------------------------------------------------------
-
+-- Table: orders
 CREATE TABLE `orders` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `order_number` varchar(50) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `guest_email` varchar(150) DEFAULT NULL,
-  `customer_name` varchar(200) NOT NULL,
-  `customer_email` varchar(150) NOT NULL,
-  `customer_phone` varchar(20) NOT NULL,
-  `shipping_address` text NOT NULL,
-  `shipping_city` varchar(100) NOT NULL,
-  `shipping_country` varchar(100) DEFAULT 'Palestine',
-  `billing_address` text DEFAULT NULL,
-  `subtotal` decimal(10,2) NOT NULL,
-  `discount_amount` decimal(10,2) DEFAULT 0.00,
-  `shipping_cost` decimal(10,2) DEFAULT 0.00,
-  `tax_amount` decimal(10,2) DEFAULT 0.00,
-  `total` decimal(10,2) NOT NULL,
-  `payment_method` varchar(50) NOT NULL,
-  `payment_status` enum('pending','paid','failed','refunded') DEFAULT 'pending',
-  `order_status` enum('pending','confirmed','processing','shipped','delivered','cancelled') DEFAULT 'pending',
-  `notes` text DEFAULT NULL,
-  `tracking_number` varchar(100) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `order_number` VARCHAR(50) NOT NULL UNIQUE,
+  `user_id` INT(11) DEFAULT NULL,
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name` VARCHAR(100) NOT NULL,
+  `email` VARCHAR(150) NOT NULL,
+  `phone` VARCHAR(20) NOT NULL,
+  `address` TEXT NOT NULL,
+  `city` VARCHAR(100) NOT NULL,
+  `postal_code` VARCHAR(20) DEFAULT NULL,
+  `country` VARCHAR(100) DEFAULT 'Palestine',
+  `subtotal` DECIMAL(10,2) NOT NULL,
+  `discount` DECIMAL(10,2) DEFAULT 0,
+  `shipping` DECIMAL(10,2) DEFAULT 0,
+  `tax` DECIMAL(10,2) DEFAULT 0,
+  `total` DECIMAL(10,2) NOT NULL,
+  `payment_method` VARCHAR(50) NOT NULL,
+  `payment_status` ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
+  `status` ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+  `coupon_code` VARCHAR(50) DEFAULT NULL,
+  `notes` TEXT DEFAULT NULL,
+  `tracking_number` VARCHAR(100) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `order_number` (`order_number`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_user` (`user_id`),
+  INDEX `idx_order_number` (`order_number`),
+  INDEX `idx_status` (`status`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `order_items`
--- --------------------------------------------------------
-
+-- Table: order_items
 CREATE TABLE `order_items` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `order_id` int(11) NOT NULL,
-  `product_id` int(11) NOT NULL,
-  `variant_id` int(11) DEFAULT NULL,
-  `product_name_en` varchar(255) NOT NULL,
-  `product_name_ar` varchar(255) NOT NULL,
-  `variant_info` varchar(255) DEFAULT NULL,
-  `quantity` int(11) NOT NULL,
-  `price` decimal(10,2) NOT NULL,
-  `total` decimal(10,2) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `order_id` INT(11) NOT NULL,
+  `product_id` INT(11) NOT NULL,
+  `product_name` VARCHAR(255) NOT NULL,
+  `sku` VARCHAR(100) DEFAULT NULL,
+  `quantity` INT(11) NOT NULL,
+  `price` DECIMAL(10,2) NOT NULL,
+  `total` DECIMAL(10,2) NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `order_id` (`order_id`),
-  KEY `product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_order` (`order_id`),
+  INDEX `idx_product` (`product_id`),
+  FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `cart`
--- --------------------------------------------------------
+-- ============================================================
+-- REVIEWS & RATINGS
+-- ============================================================
 
-CREATE TABLE `cart` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `session_id` varchar(100) DEFAULT NULL,
-  `product_id` int(11) NOT NULL,
-  `variant_id` int(11) DEFAULT NULL,
-  `quantity` int(11) NOT NULL DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
-  KEY `product_id` (`product_id`),
-  KEY `session_id` (`session_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `wishlist`
--- --------------------------------------------------------
-
-CREATE TABLE `wishlist` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `product_id` int(11) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `user_product` (`user_id`, `product_id`),
-  KEY `product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `discount_codes`
--- --------------------------------------------------------
-
-CREATE TABLE `discount_codes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `code` varchar(50) NOT NULL,
-  `description_en` text DEFAULT NULL,
-  `description_ar` text DEFAULT NULL,
-  `discount_type` enum('percentage','fixed') NOT NULL,
-  `discount_value` decimal(10,2) NOT NULL,
-  `min_purchase` decimal(10,2) DEFAULT NULL,
-  `max_discount` decimal(10,2) DEFAULT NULL,
-  `usage_limit` int(11) DEFAULT NULL,
-  `used_count` int(11) DEFAULT 0,
-  `valid_from` datetime DEFAULT NULL,
-  `valid_until` datetime DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `abandoned_carts`
--- --------------------------------------------------------
-
-CREATE TABLE `abandoned_carts` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `email` varchar(150) NOT NULL,
-  `cart_data` text NOT NULL,
-  `total_amount` decimal(10,2) NOT NULL,
-  `reminder_sent` tinyint(1) DEFAULT 0,
-  `reminder_sent_at` datetime DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `shipping_methods`
--- --------------------------------------------------------
-
-CREATE TABLE `shipping_methods` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name_en` varchar(200) NOT NULL,
-  `name_ar` varchar(200) NOT NULL,
-  `description_en` text DEFAULT NULL,
-  `description_ar` text DEFAULT NULL,
-  `cost` decimal(10,2) NOT NULL,
-  `estimated_days` varchar(50) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `payment_methods`
--- --------------------------------------------------------
-
-CREATE TABLE `payment_methods` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name_en` varchar(200) NOT NULL,
-  `name_ar` varchar(200) NOT NULL,
-  `method_type` varchar(50) NOT NULL,
-  `description_en` text DEFAULT NULL,
-  `description_ar` text DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `settings` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `notifications`
--- --------------------------------------------------------
-
-CREATE TABLE `notifications` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `type` varchar(50) NOT NULL,
-  `title_en` varchar(255) NOT NULL,
-  `title_ar` varchar(255) NOT NULL,
-  `message_en` text NOT NULL,
-  `message_ar` text NOT NULL,
-  `is_read` tinyint(1) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `staff_roles`
--- --------------------------------------------------------
-
-CREATE TABLE `staff_roles` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `role_name` varchar(100) NOT NULL,
-  `permissions` text NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `site_settings`
--- --------------------------------------------------------
-
-CREATE TABLE `site_settings` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `setting_key` varchar(100) NOT NULL,
-  `setting_value` text DEFAULT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `setting_key` (`setting_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for table `reviews`
--- --------------------------------------------------------
-
+-- Table: reviews
 CREATE TABLE `reviews` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `product_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `rating` int(1) NOT NULL,
-  `review_text` text DEFAULT NULL,
-  `is_approved` tinyint(1) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `product_id` INT(11) NOT NULL,
+  `user_id` INT(11) NOT NULL,
+  `rating` INT(1) NOT NULL CHECK (`rating` BETWEEN 1 AND 5),
+  `title` VARCHAR(200) DEFAULT NULL,
+  `comment` TEXT DEFAULT NULL,
+  `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `product_id` (`product_id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_product` (`product_id`),
+  INDEX `idx_user` (`user_id`),
+  INDEX `idx_status` (`status`),
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Table structure for table `activity_logs`
--- --------------------------------------------------------
+-- ============================================================
+-- COUPONS & DISCOUNTS
+-- ============================================================
 
-CREATE TABLE `activity_logs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `action` varchar(255) NOT NULL,
-  `table_name` varchar(100) DEFAULT NULL,
-  `record_id` int(11) DEFAULT NULL,
-  `ip_address` varchar(50) DEFAULT NULL,
-  `user_agent` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+-- Table: coupons
+CREATE TABLE `coupons` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `code` VARCHAR(50) NOT NULL UNIQUE,
+  `description` VARCHAR(255) DEFAULT NULL,
+  `type` ENUM('percentage', 'fixed') NOT NULL,
+  `value` DECIMAL(10,2) NOT NULL,
+  `min_purchase` DECIMAL(10,2) DEFAULT 0,
+  `max_uses` INT(11) DEFAULT NULL,
+  `used_count` INT(11) DEFAULT 0,
+  `user_id` INT(11) DEFAULT NULL,
+  `starts_at` TIMESTAMP NULL,
+  `expires_at` TIMESTAMP NULL,
+  `status` ENUM('active', 'inactive', 'expired') DEFAULT 'active',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  INDEX `idx_code` (`code`),
+  INDEX `idx_status` (`status`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Insert default admin user
--- Password: admin123 (hashed with bcrypt)
--- --------------------------------------------------------
+-- ============================================================
+-- CONTACT & COMMUNICATIONS
+-- ============================================================
 
-INSERT INTO `users` (`username`, `email`, `password`, `full_name`, `user_type`, `is_active`) VALUES
-('admin', 'admin@dorsh.ps', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin', 1);
+-- Table: contact_messages
+CREATE TABLE `contact_messages` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(200) NOT NULL,
+  `email` VARCHAR(150) NOT NULL,
+  `subject` VARCHAR(255) NOT NULL,
+  `message` TEXT NOT NULL,
+  `status` ENUM('new', 'read', 'replied') DEFAULT 'new',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Insert default site settings
--- --------------------------------------------------------
+-- ============================================================
+-- ADMIN ACTIVITY LOGS
+-- ============================================================
 
-INSERT INTO `site_settings` (`setting_key`, `setting_value`) VALUES
-('site_name_en', 'Dorsh Palestine'),
-('site_name_ar', 'دورش فلسطين'),
-('site_email', 'info@dorsh.ps'),
-('site_phone', '+970-XXX-XXXX'),
-('whatsapp_number', '+970XXXXXXXXX'),
-('currency', 'USD'),
-('language_default', 'en'),
-('openai_api_key', ''),
-('enable_chatbot', '1'),
-('enable_whatsapp', '1');
+-- Table: admin_activity_logs
+CREATE TABLE `admin_activity_logs` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `admin_id` INT(11) NOT NULL,
+  `action` VARCHAR(100) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `ip_address` VARCHAR(50) DEFAULT NULL,
+  `user_agent` VARCHAR(255) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_admin` (`admin_id`),
+  FOREIGN KEY (`admin_id`) REFERENCES `admins`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Insert default staff role
--- --------------------------------------------------------
+-- ============================================================
+-- SITE SETTINGS
+-- ============================================================
 
-INSERT INTO `staff_roles` (`role_name`, `permissions`) VALUES
-('Administrator', '{"products":"full","orders":"full","customers":"full","reports":"full","settings":"full","staff":"full"}'),
-('Manager', '{"products":"full","orders":"full","customers":"read","reports":"read","settings":"none","staff":"none"}'),
-('Support', '{"products":"read","orders":"read","customers":"read","reports":"none","settings":"none","staff":"none"}');
+-- Table: settings
+CREATE TABLE `settings` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `key` VARCHAR(100) NOT NULL UNIQUE,
+  `value` TEXT DEFAULT NULL,
+  `type` VARCHAR(50) DEFAULT 'text',
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_key` (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- INITIAL DATA
+-- ============================================================
+
+-- Insert Default Admin
+INSERT INTO `admins` (`username`, `email`, `password`, `full_name`, `role`, `status`) VALUES
+('admin', 'admin@dorsh-palestine.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'super_admin', 'active');
+-- Default password: password (CHANGE THIS IMMEDIATELY!)
+
+-- Insert Default Categories
+INSERT INTO `categories` (`name_en`, `name_ar`, `slug`, `parent_id`, `image`, `display_order`, `status`) VALUES
+('Kitchen & Dining', 'مطبخ وطعام', 'kitchen-dining', NULL, 'kitchen.jpg', 1, 'active'),
+('Home Decor', 'ديكور منزلي', 'home-decor', NULL, 'decor.jpg', 2, 'active'),
+('Gifts & Souvenirs', 'هدايا وتذكارات', 'gifts-souvenirs', NULL, 'gifts.jpg', 3, 'active');
+
+-- Insert Sub-Categories
+INSERT INTO `categories` (`name_en`, `name_ar`, `slug`, `parent_id`, `display_order`, `status`) VALUES
+('Coffee Equipment', 'معدات القهوة', 'coffee-equipment', 1, 1, 'active'),
+('Tea Accessories', 'أدوات الشاي', 'tea-accessories', 1, 2, 'active'),
+('Cookware', 'أدوات الطبخ', 'cookware', 1, 3, 'active'),
+('Traditional Crafts', 'حرف تقليدية', 'traditional-crafts', 2, 1, 'active'),
+('Palestinian Art', 'فن فلسطيني', 'palestinian-art', 2, 2, 'active');
+
+-- Insert Default Settings
+INSERT INTO `settings` (`key`, `value`, `type`) VALUES
+('site_name_en', 'Dorsh Palestine', 'text'),
+('site_name_ar', 'دورش فلسطين', 'text'),
+('site_email', 'info@dorsh-palestine.com', 'email'),
+('site_phone', '+970 599 123 456', 'text'),
+('whatsapp_number', '+970599123456', 'text'),
+('currency', 'USD', 'text'),
+('currency_symbol', '$', 'text'),
+('tax_rate', '0', 'number'),
+('shipping_cost', '0', 'number'),
+('openai_api_key', '', 'text'),
+('enable_chatbot', '1', 'boolean'),
+('enable_reviews', '1', 'boolean'),
+('auto_approve_reviews', '0', 'boolean'),
+('default_language', 'en', 'text');
 
 COMMIT;
+
+-- ============================================================
+-- END OF DATABASE SCHEMA
+-- ============================================================
