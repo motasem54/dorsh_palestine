@@ -587,16 +587,96 @@ function isCurrentPage($page) {
 // ADMIN FUNCTIONS
 // ============================================================
 
+/**
+ * Log admin activity
+ * @param int $admin_id
+ * @param string $action
+ * @param string $description
+ * @return bool
+ */
 if (!function_exists('logAdminActivity')) {
     function logAdminActivity($admin_id, $action, $description) {
         global $db;
         try {
             $db->query(
                 "INSERT INTO admin_activity_logs (admin_id, action, description, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                [$admin_id, $action, $description, $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '']
+                [
+                    $admin_id, 
+                    $action, 
+                    $description, 
+                    $_SERVER['REMOTE_ADDR'] ?? '', 
+                    $_SERVER['HTTP_USER_AGENT'] ?? ''
+                ]
             );
+            return true;
         } catch (Exception $e) {
             error_log("Failed to log admin activity: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+/**
+ * Log failed login attempt
+ * @param string $email
+ * @return bool
+ */
+if (!function_exists('logFailedLogin')) {
+    function logFailedLogin($email) {
+        global $db;
+        try {
+            // Create failed_login_attempts table if not exists
+            $db->query("
+                CREATE TABLE IF NOT EXISTS failed_login_attempts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    email VARCHAR(100),
+                    ip_address VARCHAR(45),
+                    user_agent VARCHAR(255),
+                    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_email (email),
+                    INDEX idx_ip (ip_address),
+                    INDEX idx_attempted_at (attempted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            
+            // Insert failed attempt
+            $db->query(
+                "INSERT INTO failed_login_attempts (email, ip_address, user_agent) VALUES (?, ?, ?)",
+                [
+                    $email,
+                    $_SERVER['REMOTE_ADDR'] ?? '',
+                    $_SERVER['HTTP_USER_AGENT'] ?? ''
+                ]
+            );
+            return true;
+        } catch (Exception $e) {
+            error_log("Failed to log failed login: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+/**
+ * Check if IP is blocked due to too many failed attempts
+ * @param string $ip
+ * @param int $max_attempts
+ * @param int $timeframe_minutes
+ * @return bool
+ */
+if (!function_exists('isIpBlocked')) {
+    function isIpBlocked($ip, $max_attempts = 5, $timeframe_minutes = 15) {
+        global $db;
+        try {
+            $result = $db->query(
+                "SELECT COUNT(*) as attempts FROM failed_login_attempts 
+                WHERE ip_address = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)",
+                [$ip, $timeframe_minutes]
+            )->fetch();
+            
+            return ($result['attempts'] ?? 0) >= $max_attempts;
+        } catch (Exception $e) {
+            error_log("Failed to check IP block: " . $e->getMessage());
+            return false;
         }
     }
 }
