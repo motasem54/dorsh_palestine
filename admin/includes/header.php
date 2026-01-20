@@ -96,164 +96,326 @@ try {
             --secondary: #2ecc71;
             --danger: #e74c3c;
             --warning: #f39c12;
-            --dark: #2c3e50;
-            --light: #ecf0f1;
             --sidebar-width: 280px;
-            --topbar-height: 70px;
+            --topbar-height: 75px;
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
             background-attachment: fixed;
-            color: #2c3e50;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
             <?php if ($admin_lang === 'ar'): ?>
             direction: rtl;
-            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
             <?php endif; ?>
         }
         
-        /* Glassmorphism Background */
+        /* Animated Background */
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(252, 70, 107, 0.3), transparent 50%),
-                radial-gradient(circle at 40% 60%, rgba(99, 125, 231, 0.3), transparent 50%);
-            animation: gradientShift 15s ease infinite;
-            pointer-events: none;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: backgroundMove 20s linear infinite;
+            z-index: 0;
         }
         
-        @keyframes gradientShift {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.1); }
+        @keyframes backgroundMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Floating Circles */
+        .floating-circles {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.1));
+            animation: float 15s ease-in-out infinite;
+        }
+        
+        .circle:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            top: 10%;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 20%;
+            animation-delay: 0s;
+        }
+        
+        .circle:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            top: 60%;
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 20%;
+            animation-delay: 2s;
+        }
+        
+        .circle:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            top: 80%;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 10%;
+            animation-delay: 4s;
+        }
+        
+        .circle:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            top: 30%;
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 30%;
+            animation-delay: 6s;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.5;
+            }
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+                opacity: 0.8;
+            }
         }
         
         .admin-layout {
             display: flex;
             min-height: 100vh;
             position: relative;
+            z-index: 1;
         }
         
-        /* TOP NAVBAR */
+        /* SIDEBAR - Glass Effect */
+        .admin-sidebar {
+            width: var(--sidebar-width);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            position: fixed;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            border-<?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-header {
+            padding: 30px 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+        }
+        
+        .sidebar-logo {
+            width: 65px;
+            height: 65px;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(52, 152, 219, 0.4);
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .sidebar-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+        }
+        
+        .sidebar-nav {
+            padding: 25px 15px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 16px 20px;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            border-radius: 15px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #3498db, #2980b9);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .nav-item:hover {
+            background: rgba(52, 152, 219, 0.15);
+            transform: translateX(<?php echo $admin_lang === 'ar' ? '-' : ''; ?>5px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-item:hover::before {
+            transform: scaleY(1);
+        }
+        
+        .nav-item.active {
+            background: rgba(52, 152, 219, 0.25);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.35);
+        }
+        
+        .nav-item.active::before {
+            transform: scaleY(1);
+        }
+        
+        .nav-item i {
+            font-size: 19px;
+            width: 26px;
+            text-align: center;
+        }
+        
+        /* TOP NAVBAR - Glass Effect */
         .top-navbar {
             position: fixed;
             top: 0;
-            left: var(--sidebar-width);
-            right: 0;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: var(--sidebar-width);
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 0;
             height: var(--topbar-height);
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
             z-index: 999;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 30px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            padding: 0 35px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }
-        
-        <?php if ($admin_lang === 'ar'): ?>
-        .top-navbar {
-            left: 0;
-            right: var(--sidebar-width);
-        }
-        <?php endif; ?>
         
         .topbar-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
+            flex: 1;
         }
         
         .search-box {
             position: relative;
+            max-width: 400px;
         }
         
         .search-box input {
-            width: 350px;
-            padding: 12px 20px 12px 45px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 25px;
-            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            padding: 14px 20px 14px 50px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.15);
             color: white;
-            font-size: 14px;
+            font-size: 15px;
             transition: all 0.3s ease;
         }
         
         <?php if ($admin_lang === 'ar'): ?>
         .search-box input {
-            padding: 12px 45px 12px 20px;
+            padding: 14px 50px 14px 20px;
         }
         <?php endif; ?>
         
         .search-box input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.6);
         }
         
         .search-box input:focus {
             outline: none;
-            background: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2);
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(52, 152, 219, 0.6);
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
         }
         
         .search-box i {
             position: absolute;
-            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 18px;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 20px;
             top: 50%;
             transform: translateY(-50%);
             color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
         }
         
         .topbar-right {
             display: flex;
             align-items: center;
-            gap: 25px;
+            gap: 20px;
         }
         
         /* Language Switcher */
         .lang-switcher {
             display: flex;
             gap: 5px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 5px;
-            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .lang-switcher a {
-            padding: 8px 16px;
-            border-radius: 15px;
+            padding: 10px 18px;
+            border-radius: 20px;
             color: white;
             text-decoration: none;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
         
         .lang-switcher a.active {
-            background: rgba(52, 152, 219, 0.8);
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.5);
         }
         
         .lang-switcher a:hover:not(.active) {
             background: rgba(255, 255, 255, 0.2);
         }
         
-        /* Notifications */
+        /* Notification Icon */
         .notification-icon {
             position: relative;
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             color: white;
             cursor: pointer;
@@ -261,15 +423,16 @@ try {
         }
         
         .notification-icon:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
             transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
         
         .notification-icon .badge {
             position: absolute;
-            top: -5px;
-            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: -5px;
-            background: #e74c3c;
+            top: -3px;
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: -3px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
             color: white;
             width: 22px;
             height: 22px;
@@ -279,6 +442,7 @@ try {
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 2px solid rgba(15, 32, 39, 0.8);
             animation: pulse 2s infinite;
         }
         
@@ -296,41 +460,45 @@ try {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 8px 15px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 25px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
             color: white;
             cursor: pointer;
             transition: all 0.3s ease;
         }
         
         .profile-trigger:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
             transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
         
         .profile-avatar {
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #3498db, #2980b9);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
             font-size: 16px;
-            border: 2px solid white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
         
         .profile-menu {
             position: absolute;
             top: calc(100% + 15px);
             <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 0;
-            min-width: 250px;
+            min-width: 260px;
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(25px);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
             opacity: 0;
             visibility: hidden;
             transform: translateY(-10px);
@@ -344,15 +512,18 @@ try {
         }
         
         .profile-menu-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 22px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(41, 128, 185, 0.05));
+            border-radius: 18px 18px 0 0;
         }
         
         .profile-menu-header strong {
             display: block;
             color: #2c3e50;
-            font-size: 16px;
+            font-size: 17px;
             margin-bottom: 5px;
+            font-weight: 700;
         }
         
         .profile-menu-header small {
@@ -363,110 +534,36 @@ try {
         .profile-menu a {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 14px 20px;
+            gap: 14px;
+            padding: 15px 22px;
             color: #2c3e50;
             text-decoration: none;
             transition: all 0.2s ease;
-            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 3px solid transparent;
+            font-weight: 500;
         }
         
         .profile-menu a:hover {
-            background: rgba(52, 152, 219, 0.1);
-            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>-color: #3498db;
-            padding-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 25px;
+            background: rgba(52, 152, 219, 0.08);
+            padding-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 28px;
+        }
+        
+        .profile-menu a:last-child {
+            border-radius: 0 0 18px 18px;
         }
         
         .profile-menu a i {
-            font-size: 16px;
-            width: 20px;
+            font-size: 17px;
+            width: 22px;
             color: #3498db;
         }
         
         .profile-menu a.danger {
             color: #e74c3c;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
         }
         
         .profile-menu a.danger i {
             color: #e74c3c;
-        }
-        
-        /* SIDEBAR */
-        .admin-sidebar {
-            width: var(--sidebar-width);
-            background: rgba(44, 62, 80, 0.95);
-            backdrop-filter: blur(20px);
-            position: fixed;
-            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            border-<?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .sidebar-header {
-            padding: 25px 20px;
-            background: rgba(0, 0, 0, 0.2);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .sidebar-logo {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .sidebar-header h2 {
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-        }
-        
-        .sidebar-nav {
-            padding: 20px 0;
-        }
-        
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 14px 20px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 4px solid transparent;
-            margin: 5px 10px;
-            border-radius: 10px;
-        }
-        
-        .nav-item:hover {
-            background: rgba(52, 152, 219, 0.15);
-            color: white;
-            padding-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 25px;
-        }
-        
-        .nav-item.active {
-            background: rgba(52, 152, 219, 0.25);
-            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>-color: #3498db;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
-        }
-        
-        .nav-item i {
-            font-size: 18px;
-            width: 24px;
         }
         
         /* MAIN CONTENT */
@@ -474,47 +571,49 @@ try {
             flex: 1;
             margin-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: var(--sidebar-width);
             margin-top: var(--topbar-height);
-            padding: 30px;
+            padding: 35px;
             min-height: calc(100vh - var(--topbar-height));
         }
         
         .page-header {
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            padding: 25px 30px;
-            border-radius: 20px;
+            backdrop-filter: blur(25px);
+            padding: 28px 35px;
+            border-radius: 22px;
             margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }
         
         .page-header h1 {
             color: white;
-            font-size: 32px;
+            font-size: 34px;
             font-weight: 700;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+            letter-spacing: -0.5px;
         }
         
         .admin-content {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(25px);
+            border-radius: 22px;
+            padding: 35px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }
         
         /* Alerts */
         .alert {
-            padding: 16px 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            padding: 18px 24px;
+            border-radius: 15px;
+            margin-bottom: 25px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-weight: 500;
+            gap: 14px;
+            font-weight: 600;
             backdrop-filter: blur(10px);
-            animation: slideDown 0.3s ease;
+            animation: slideDown 0.4s ease;
+            border: 1px solid;
         }
         
         @keyframes slideDown {
@@ -525,18 +624,18 @@ try {
         .alert-success {
             background: rgba(46, 204, 113, 0.2);
             color: #27ae60;
-            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-color: rgba(46, 204, 113, 0.4);
         }
         
         .alert-error {
             background: rgba(231, 76, 60, 0.2);
-            color: #c0392b;
-            border: 1px solid rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.4);
         }
         
         /* Scrollbar */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
         }
         
         ::-webkit-scrollbar-track {
@@ -545,42 +644,182 @@ try {
         
         ::-webkit-scrollbar-thumb {
             background: rgba(52, 152, 219, 0.5);
-            border-radius: 4px;
+            border-radius: 5px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(52, 152, 219, 0.7);
         }
         
+        /* Mobile Toggle */
+        .mobile-toggle {
+            display: none;
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            :root {
+                --sidebar-width: 240px;
+            }
+            
+            .search-box {
+                max-width: 280px;
+            }
+        }
+        
         @media (max-width: 768px) {
+            .mobile-toggle {
+                display: flex;
+            }
+            
+            .admin-sidebar {
+                transform: translateX(<?php echo $admin_lang === 'ar' ? '' : '-'; ?>100%);
+                box-shadow: none;
+            }
+            
+            <?php if ($admin_lang === 'ar'): ?>
+            .admin-sidebar {
+                transform: translateX(100%);
+            }
+            <?php endif; ?>
+            
+            .admin-sidebar.active {
+                transform: translateX(0);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.5);
+            }
+            
             .top-navbar {
                 left: 0;
                 right: 0;
+                padding: 0 20px;
             }
-            .admin-sidebar {
-                width: 70px;
-            }
+            
             .admin-main {
                 margin-left: 0;
                 margin-right: 0;
+                padding: 20px;
             }
-            .nav-item span {
-                display: none;
+            
+            .search-box {
+                max-width: 180px;
             }
-            .sidebar-header h2 {
-                display: none;
-            }
+            
             .search-box input {
-                width: 200px;
+                padding: 12px 15px 12px 40px;
+                font-size: 14px;
+            }
+            
+            <?php if ($admin_lang === 'ar'): ?>
+            .search-box input {
+                padding: 12px 40px 12px 15px;
+            }
+            <?php endif; ?>
+            
+            .profile-trigger span {
+                display: none;
+            }
+            
+            .page-header h1 {
+                font-size: 26px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .topbar-right {
+                gap: 10px;
+            }
+            
+            .lang-switcher a {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+            
+            .notification-icon {
+                width: 42px;
+                height: 42px;
+            }
+            
+            .admin-content {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Floating Circles Background -->
+    <div class="floating-circles">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+    
     <div class="admin-layout">
+        <!-- SIDEBAR -->
+        <aside class="admin-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h2>Dorsch Admin</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span><?php echo at('dashboard'); ?></span>
+                </a>
+                <a href="products/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/products/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-box"></i>
+                    <span><?php echo at('products'); ?></span>
+                </a>
+                <a href="categories/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/categories/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-tags"></i>
+                    <span><?php echo at('categories'); ?></span>
+                </a>
+                <a href="orders/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/orders/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span><?php echo at('orders'); ?></span>
+                </a>
+                <a href="customers/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/customers/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-users"></i>
+                    <span><?php echo at('customers'); ?></span>
+                </a>
+                <a href="coupons/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/coupons/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-ticket-alt"></i>
+                    <span><?php echo at('coupons'); ?></span>
+                </a>
+                <a href="reviews.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'reviews.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-star"></i>
+                    <span><?php echo at('reviews'); ?></span>
+                </a>
+                <a href="settings/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/settings/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-cog"></i>
+                    <span><?php echo at('settings'); ?></span>
+                </a>
+            </nav>
+        </aside>
+        
         <!-- TOP NAVBAR -->
         <nav class="top-navbar">
             <div class="topbar-left">
+                <div class="mobile-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </div>
                 <div class="search-box">
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="<?php echo at('search'); ?>">
@@ -632,50 +871,6 @@ try {
             </div>
         </nav>
         
-        <!-- SIDEBAR -->
-        <aside class="admin-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">
-                    <i class="fas fa-rocket"></i>
-                </div>
-                <h2>Dorsch Admin</h2>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="index.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span><?php echo at('dashboard'); ?></span>
-                </a>
-                <a href="products/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/products/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-box"></i>
-                    <span><?php echo at('products'); ?></span>
-                </a>
-                <a href="categories/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/categories/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-tags"></i>
-                    <span><?php echo at('categories'); ?></span>
-                </a>
-                <a href="orders/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/orders/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span><?php echo at('orders'); ?></span>
-                </a>
-                <a href="customers/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/customers/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-users"></i>
-                    <span><?php echo at('customers'); ?></span>
-                </a>
-                <a href="coupons/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/coupons/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-ticket-alt"></i>
-                    <span><?php echo at('coupons'); ?></span>
-                </a>
-                <a href="reviews.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'reviews.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-star"></i>
-                    <span><?php echo at('reviews'); ?></span>
-                </a>
-                <a href="settings/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/settings/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-cog"></i>
-                    <span><?php echo at('settings'); ?></span>
-                </a>
-            </nav>
-        </aside>
-        
         <!-- MAIN CONTENT -->
         <main class="admin-main">
             <div class="page-header">
@@ -696,3 +891,21 @@ try {
                     <span><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></span>
                 </div>
                 <?php endif; ?>
+                
+    <script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.querySelector('.mobile-toggle');
+        
+        if (window.innerWidth <= 768) {
+            if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+    </script>
