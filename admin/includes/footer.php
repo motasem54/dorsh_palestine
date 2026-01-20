@@ -1,15 +1,27 @@
             </div>
-            
-            <footer class="admin-footer">
-                <div class="footer-content">
-                    <span>&copy; <?php echo date('Y'); ?> Dorsh Palestine. All rights reserved.</span>
-                    <span>Version 1.0.0</span>
-                </div>
-            </footer>
-        </div>
+        </main>
     </div>
     
-    <!-- JavaScript -->
-    <script src="/admin/assets/js/admin.js"></script>
+    <!-- Footer Scripts -->
+    <script>
+    // Auto-dismiss alerts
+    document.querySelectorAll('.alert').forEach(alert => {
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        }, 5000);
+    });
+    
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+    </script>
 </body>
 </html>
