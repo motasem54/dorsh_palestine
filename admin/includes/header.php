@@ -21,7 +21,7 @@ if (isset($_GET['lang']) && in_array($_GET['lang'], ['en', 'ar'])) {
 }
 
 // Admin translations
-$trans = [
+$admin_trans = [
     'en' => [
         'dashboard' => 'Dashboard',
         'products' => 'Products',
@@ -58,9 +58,9 @@ $trans = [
     ]
 ];
 
-function t($key) {
-    global $trans, $admin_lang;
-    return $trans[$admin_lang][$key] ?? $key;
+function at($key) {
+    global $admin_trans, $admin_lang;
+    return $admin_trans[$admin_lang][$key] ?? $key;
 }
 
 // Get notifications count
@@ -159,6 +159,13 @@ try {
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
         
+        <?php if ($admin_lang === 'ar'): ?>
+        .top-navbar {
+            left: 0;
+            right: var(--sidebar-width);
+        }
+        <?php endif; ?>
+        
         .topbar-left {
             display: flex;
             align-items: center;
@@ -180,6 +187,12 @@ try {
             transition: all 0.3s ease;
         }
         
+        <?php if ($admin_lang === 'ar'): ?>
+        .search-box input {
+            padding: 12px 45px 12px 20px;
+        }
+        <?php endif; ?>
+        
         .search-box input::placeholder {
             color: rgba(255, 255, 255, 0.7);
         }
@@ -192,7 +205,7 @@ try {
         
         .search-box i {
             position: absolute;
-            left: 18px;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 18px;
             top: 50%;
             transform: translateY(-50%);
             color: rgba(255, 255, 255, 0.7);
@@ -255,7 +268,7 @@ try {
         .notification-icon .badge {
             position: absolute;
             top: -5px;
-            right: -5px;
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: -5px;
             background: #e74c3c;
             color: white;
             width: 22px;
@@ -312,7 +325,7 @@ try {
         .profile-menu {
             position: absolute;
             top: calc(100% + 15px);
-            right: 0;
+            <?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 0;
             min-width: 250px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -355,13 +368,13 @@ try {
             color: #2c3e50;
             text-decoration: none;
             transition: all 0.2s ease;
-            border-left: 3px solid transparent;
+            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 3px solid transparent;
         }
         
         .profile-menu a:hover {
             background: rgba(52, 152, 219, 0.1);
-            border-left-color: #3498db;
-            padding-left: 25px;
+            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>-color: #3498db;
+            padding-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 25px;
         }
         
         .profile-menu a i {
@@ -384,11 +397,12 @@ try {
             background: rgba(44, 62, 80, 0.95);
             backdrop-filter: blur(20px);
             position: fixed;
+            <?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 0;
             height: 100vh;
             overflow-y: auto;
             box-shadow: 4px 0 30px rgba(0, 0, 0, 0.2);
             z-index: 1000;
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            border-<?php echo $admin_lang === 'ar' ? 'left' : 'right'; ?>: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .sidebar-header {
@@ -431,7 +445,7 @@ try {
             color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
             transition: all 0.3s ease;
-            border-left: 4px solid transparent;
+            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 4px solid transparent;
             margin: 5px 10px;
             border-radius: 10px;
         }
@@ -439,12 +453,12 @@ try {
         .nav-item:hover {
             background: rgba(52, 152, 219, 0.15);
             color: white;
-            padding-left: 25px;
+            padding-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: 25px;
         }
         
         .nav-item.active {
             background: rgba(52, 152, 219, 0.25);
-            border-left-color: #3498db;
+            border-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>-color: #3498db;
             color: white;
             font-weight: 600;
             box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
@@ -458,7 +472,7 @@ try {
         /* MAIN CONTENT */
         .admin-main {
             flex: 1;
-            margin-left: var(--sidebar-width);
+            margin-<?php echo $admin_lang === 'ar' ? 'right' : 'left'; ?>: var(--sidebar-width);
             margin-top: var(--topbar-height);
             padding: 30px;
             min-height: calc(100vh - var(--topbar-height));
@@ -537,6 +551,29 @@ try {
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(52, 152, 219, 0.7);
         }
+        
+        @media (max-width: 768px) {
+            .top-navbar {
+                left: 0;
+                right: 0;
+            }
+            .admin-sidebar {
+                width: 70px;
+            }
+            .admin-main {
+                margin-left: 0;
+                margin-right: 0;
+            }
+            .nav-item span {
+                display: none;
+            }
+            .sidebar-header h2 {
+                display: none;
+            }
+            .search-box input {
+                width: 200px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -546,7 +583,7 @@ try {
             <div class="topbar-left">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" placeholder="<?php echo t('search'); ?>">
+                    <input type="text" placeholder="<?php echo at('search'); ?>">
                 </div>
             </div>
             <div class="topbar-right">
@@ -580,15 +617,15 @@ try {
                         </div>
                         <a href="profile.php">
                             <i class="fas fa-user"></i>
-                            <span><?php echo t('profile'); ?></span>
+                            <span><?php echo at('profile'); ?></span>
                         </a>
                         <a href="change-password.php">
                             <i class="fas fa-key"></i>
-                            <span><?php echo t('change_password'); ?></span>
+                            <span><?php echo at('change_password'); ?></span>
                         </a>
                         <a href="logout.php" class="danger">
                             <i class="fas fa-sign-out-alt"></i>
-                            <span><?php echo t('logout'); ?></span>
+                            <span><?php echo at('logout'); ?></span>
                         </a>
                     </div>
                 </div>
@@ -606,35 +643,35 @@ try {
             <nav class="sidebar-nav">
                 <a href="index.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
                     <i class="fas fa-tachometer-alt"></i>
-                    <span><?php echo t('dashboard'); ?></span>
+                    <span><?php echo at('dashboard'); ?></span>
                 </a>
                 <a href="products/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/products/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i>
-                    <span><?php echo t('products'); ?></span>
+                    <span><?php echo at('products'); ?></span>
                 </a>
                 <a href="categories/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/categories/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-tags"></i>
-                    <span><?php echo t('categories'); ?></span>
+                    <span><?php echo at('categories'); ?></span>
                 </a>
                 <a href="orders/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/orders/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i>
-                    <span><?php echo t('orders'); ?></span>
+                    <span><?php echo at('orders'); ?></span>
                 </a>
                 <a href="customers/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/customers/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i>
-                    <span><?php echo t('customers'); ?></span>
+                    <span><?php echo at('customers'); ?></span>
                 </a>
                 <a href="coupons/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/coupons/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-ticket-alt"></i>
-                    <span><?php echo t('coupons'); ?></span>
+                    <span><?php echo at('coupons'); ?></span>
                 </a>
                 <a href="reviews.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'reviews.php' ? 'active' : ''; ?>">
                     <i class="fas fa-star"></i>
-                    <span><?php echo t('reviews'); ?></span>
+                    <span><?php echo at('reviews'); ?></span>
                 </a>
                 <a href="settings/" class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], '/settings/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-cog"></i>
-                    <span><?php echo t('settings'); ?></span>
+                    <span><?php echo at('settings'); ?></span>
                 </a>
             </nav>
         </aside>
